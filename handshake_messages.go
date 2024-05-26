@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ddkwork/golibrary/mylog"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -281,10 +282,7 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			})
 		})
 	}
-	extBytes, err := exts.Bytes()
-	if err != nil {
-		return nil, err
-	}
+	extBytes := mylog.Check2(exts.Bytes())
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeClientHello)
@@ -310,8 +308,8 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 		}
 	})
 
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 // marshalWithoutBinders returns the ClientHello through the
@@ -324,10 +322,8 @@ func (m *clientHelloMsg) marshalWithoutBinders() ([]byte, error) {
 		bindersLen += len(binder)
 	}
 
-	fullMessage, err := m.marshal()
-	if err != nil {
-		return nil, err
-	}
+	fullMessage := mylog.Check2(m.marshal())
+
 	return fullMessage[:len(fullMessage)-bindersLen], nil
 }
 
@@ -345,10 +341,8 @@ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) error {
 	}
 	m.pskBinders = pskBinders
 	if m.raw != nil {
-		helloBytes, err := m.marshalWithoutBinders()
-		if err != nil {
-			return err
-		}
+		helloBytes := mylog.Check2(m.marshalWithoutBinders())
+
 		lenWithoutBinders := len(helloBytes)
 		b := cryptobyte.NewFixedBuilder(m.raw[:lenWithoutBinders])
 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
@@ -358,7 +352,7 @@ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) error {
 				})
 			}
 		})
-		if out, err := b.Bytes(); err != nil || len(out) != len(m.raw) {
+		if out := mylog.Check2(b.Bytes()); len(out) != len(m.raw) {
 			return errors.New("tls: internal error: failed to update binders")
 		}
 	}
@@ -743,10 +737,7 @@ func (m *serverHelloMsg) marshal() ([]byte, error) {
 		})
 	}
 
-	extBytes, err := exts.Bytes()
-	if err != nil {
-		return nil, err
-	}
+	extBytes := mylog.Check2(exts.Bytes())
 
 	var b cryptobyte.Builder
 	b.AddUint8(typeServerHello)
@@ -766,8 +757,8 @@ func (m *serverHelloMsg) marshal() ([]byte, error) {
 		}
 	})
 
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *serverHelloMsg) unmarshal(data []byte) bool {
@@ -929,9 +920,8 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 		})
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
@@ -1017,9 +1007,8 @@ func (m *keyUpdateMsg) marshal() ([]byte, error) {
 		}
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *keyUpdateMsg) unmarshal(data []byte) bool {
@@ -1078,9 +1067,8 @@ func (m *newSessionTicketMsgTLS13) marshal() ([]byte, error) {
 		})
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
@@ -1194,9 +1182,8 @@ func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
 		})
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
@@ -1379,9 +1366,8 @@ func (m *certificateMsgTLS13) marshal() ([]byte, error) {
 		marshalCertificate(b, certificate)
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func marshalCertificate(b *cryptobyte.Builder, certificate Certificate) {
@@ -1548,9 +1534,8 @@ func (m *certificateStatusMsg) marshal() ([]byte, error) {
 		})
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *certificateStatusMsg) unmarshal(data []byte) bool {
@@ -1629,9 +1614,8 @@ func (m *finishedMsg) marshal() ([]byte, error) {
 		b.AddBytes(m.verifyData)
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *finishedMsg) unmarshal(data []byte) bool {
@@ -1807,9 +1791,8 @@ func (m *certificateVerifyMsg) marshal() ([]byte, error) {
 		})
 	})
 
-	var err error
-	m.raw, err = b.Bytes()
-	return m.raw, err
+	m.raw = mylog.Check2(b.Bytes())
+	return m.raw, nil
 }
 
 func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
@@ -1876,8 +1859,7 @@ func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
 	return true
 }
 
-type helloRequestMsg struct {
-}
+type helloRequestMsg struct{}
 
 func (*helloRequestMsg) marshal() ([]byte, error) {
 	return []byte{typeHelloRequest, 0, 0, 0}, nil
@@ -1894,10 +1876,8 @@ type transcriptHash interface {
 // transcriptMsg is a helper used to marshal and hash messages which typically
 // are not written to the wire, and as such aren't hashed during Conn.writeRecord.
 func transcriptMsg(msg handshakeMessage, h transcriptHash) error {
-	data, err := msg.marshal()
-	if err != nil {
-		return err
-	}
+	data := mylog.Check2(msg.marshal())
+
 	h.Write(data)
 	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func TestCertCache(t *testing.T) {
@@ -19,14 +21,10 @@ func TestCertCache(t *testing.T) {
 		t.Fatal("Failed to decode certificate")
 	}
 
-	certA, err := cc.newCert(p.Bytes)
-	if err != nil {
-		t.Fatalf("newCert failed: %s", err)
-	}
-	certB, err := cc.newCert(p.Bytes)
-	if err != nil {
-		t.Fatalf("newCert failed: %s", err)
-	}
+	certA := mylog.Check2(cc.newCert(p.Bytes))
+
+	certB := mylog.Check2(cc.newCert(p.Bytes))
+
 	if certA.cert != certB.cert {
 		t.Fatal("newCert returned a unique reference for a duplicate certificate")
 	}
@@ -96,16 +94,11 @@ func BenchmarkCertCache(b *testing.B) {
 			actives := make([]*activeCert, extra+1)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				var err error
-				actives[0], err = cc.newCert(p.Bytes)
-				if err != nil {
-					b.Fatal(err)
-				}
+
+				actives[0] = mylog.Check2(cc.newCert(p.Bytes))
+
 				for j := 0; j < extra; j++ {
-					actives[j+1], err = cc.newCert(p.Bytes)
-					if err != nil {
-						b.Fatal(err)
-					}
+					actives[j+1] = mylog.Check2(cc.newCert(p.Bytes))
 				}
 				for j := 0; j < extra+1; j++ {
 					actives[j] = nil

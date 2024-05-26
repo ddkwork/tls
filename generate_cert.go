@@ -25,6 +25,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 var (
@@ -58,27 +60,24 @@ func main() {
 	}
 
 	var priv any
-	var err error
+
 	switch *ecdsaCurve {
 	case "":
 		if *ed25519Key {
-			_, priv, err = ed25519.GenerateKey(rand.Reader)
+			_, priv = mylog.Check3(ed25519.GenerateKey(rand.Reader))
 		} else {
-			priv, err = rsa.GenerateKey(rand.Reader, *rsaBits)
+			priv = mylog.Check2(rsa.GenerateKey(rand.Reader, *rsaBits))
 		}
 	case "P224":
-		priv, err = ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+		priv = mylog.Check2(ecdsa.GenerateKey(elliptic.P224(), rand.Reader))
 	case "P256":
-		priv, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		priv = mylog.Check2(ecdsa.GenerateKey(elliptic.P256(), rand.Reader))
 	case "P384":
-		priv, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		priv = mylog.Check2(ecdsa.GenerateKey(elliptic.P384(), rand.Reader))
 	case "P521":
-		priv, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		priv = mylog.Check2(ecdsa.GenerateKey(elliptic.P521(), rand.Reader))
 	default:
 		log.Fatalf("Unrecognized elliptic curve: %q", *ecdsaCurve)
-	}
-	if err != nil {
-		log.Fatalf("Failed to generate private key: %v", err)
 	}
 
 	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
@@ -95,19 +94,13 @@ func main() {
 	if len(*validFrom) == 0 {
 		notBefore = time.Now()
 	} else {
-		notBefore, err = time.Parse("Jan 2 15:04:05 2006", *validFrom)
-		if err != nil {
-			log.Fatalf("Failed to parse creation date: %v", err)
-		}
+		notBefore = mylog.Check2(time.Parse("Jan 2 15:04:05 2006", *validFrom))
 	}
 
 	notAfter := notBefore.Add(*validFor)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		log.Fatalf("Failed to generate serial number: %v", err)
-	}
+	serialNumber := mylog.Check2(rand.Int(rand.Reader, serialNumberLimit))
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -136,36 +129,19 @@ func main() {
 		template.KeyUsage |= x509.KeyUsageCertSign
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
-	if err != nil {
-		log.Fatalf("Failed to create certificate: %v", err)
-	}
+	derBytes := mylog.Check2(x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv))
 
-	certOut, err := os.Create("cert.pem")
-	if err != nil {
-		log.Fatalf("Failed to open cert.pem for writing: %v", err)
-	}
-	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		log.Fatalf("Failed to write data to cert.pem: %v", err)
-	}
-	if err := certOut.Close(); err != nil {
-		log.Fatalf("Error closing cert.pem: %v", err)
-	}
+	certOut := mylog.Check2(os.Create("cert.pem"))
+	mylog.Check(pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}))
+	mylog.Check(certOut.Close())
+
 	log.Print("wrote cert.pem\n")
 
-	keyOut, err := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalf("Failed to open key.pem for writing: %v", err)
-	}
-	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		log.Fatalf("Unable to marshal private key: %v", err)
-	}
-	if err := pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
-		log.Fatalf("Failed to write data to key.pem: %v", err)
-	}
-	if err := keyOut.Close(); err != nil {
-		log.Fatalf("Error closing key.pem: %v", err)
-	}
+	keyOut := mylog.Check2(os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600))
+
+	privBytes := mylog.Check2(x509.MarshalPKCS8PrivateKey(priv))
+	mylog.Check(pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}))
+	mylog.Check(keyOut.Close())
+
 	log.Print("wrote key.pem\n")
 }

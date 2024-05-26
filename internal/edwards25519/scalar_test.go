@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // quickCheckConfig returns a quick.Config that scales the max count by the
@@ -24,9 +26,11 @@ func quickCheckConfig(slowScale int) *quick.Config {
 	return cfg
 }
 
-var scOneBytes = [32]byte{1}
-var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
-var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
+var (
+	scOneBytes    = [32]byte{1}
+	scOne, _      = new(Scalar).SetCanonicalBytes(scOneBytes[:])
+	scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
+)
 
 // Generate returns a valid (reduced modulo l) Scalar with a distribution
 // weighted towards high, low, and edge values.
@@ -67,45 +71,39 @@ func TestScalarGenerate(t *testing.T) {
 	f := func(sc Scalar) bool {
 		return isReduced(sc.Bytes())
 	}
-	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
-		t.Errorf("generated unreduced scalar: %v", err)
-	}
+	mylog.Check(quick.Check(f, quickCheckConfig(1024)))
 }
 
 func TestScalarSetCanonicalBytes(t *testing.T) {
-	f1 := func(in [32]byte, sc Scalar) bool {
-		// Mask out top 4 bits to guarantee value falls in [0, l).
-		in[len(in)-1] &= (1 << 4) - 1
-		if _, err := sc.SetCanonicalBytes(in[:]); err != nil {
-			return false
-		}
-		repr := sc.Bytes()
-		return bytes.Equal(in[:], repr) && isReduced(repr)
-	}
-	if err := quick.Check(f1, quickCheckConfig(1024)); err != nil {
-		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
-	}
+	mylog.Call(func() {
+		f1 := func(in [32]byte, sc Scalar) bool {
+			// Mask out top 4 bits to guarantee value falls in [0, l).
+			in[len(in)-1] &= (1 << 4) - 1
+			mylog.Check2(sc.SetCanonicalBytes(in[:]))
 
-	f2 := func(sc1, sc2 Scalar) bool {
-		if _, err := sc2.SetCanonicalBytes(sc1.Bytes()); err != nil {
-			return false
+			repr := sc.Bytes()
+			return bytes.Equal(in[:], repr) && isReduced(repr)
 		}
-		return sc1 == sc2
-	}
-	if err := quick.Check(f2, quickCheckConfig(1024)); err != nil {
-		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
-	}
+		mylog.Check(quick.Check(f1, quickCheckConfig(1024)))
 
-	b := scalarMinusOneBytes
-	b[31] += 1
-	s := scOne
-	if out, err := s.SetCanonicalBytes(b[:]); err == nil {
+		f2 := func(sc1, sc2 Scalar) bool {
+			mylog.Check2(sc2.SetCanonicalBytes(sc1.Bytes()))
+
+			return sc1 == sc2
+		}
+		mylog.Check(quick.Check(f2, quickCheckConfig(1024)))
+
+		b := scalarMinusOneBytes
+		b[31] += 1
+		s := scOne
+		out := mylog.Check2(s.SetCanonicalBytes(b[:]))
 		t.Errorf("SetCanonicalBytes worked on a non-canonical value")
-	} else if s != scOne {
-		t.Errorf("SetCanonicalBytes modified its receiver")
-	} else if out != nil {
-		t.Errorf("SetCanonicalBytes did not return nil with an error")
-	}
+		if s != scOne {
+			t.Errorf("SetCanonicalBytes modified its receiver")
+		} else if out != nil {
+			t.Errorf("SetCanonicalBytes did not return nil with an error")
+		}
+	})
 }
 
 func TestScalarSetUniformBytes(t *testing.T) {
@@ -121,9 +119,7 @@ func TestScalarSetUniformBytes(t *testing.T) {
 		inBig := bigIntFromLittleEndianBytes(in[:])
 		return inBig.Mod(inBig, mod).Cmp(scBig) == 0
 	}
-	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(f, quickCheckConfig(1024)))
 }
 
 func TestScalarSetBytesWithClamping(t *testing.T) {
@@ -180,10 +176,7 @@ func TestScalarMultiplyDistributesOverAdd(t *testing.T) {
 
 		return t1 == t2 && isReduced(reprT1) && isReduced(reprT2)
 	}
-
-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)))
 }
 
 func TestScalarAddLikeSubNeg(t *testing.T) {
@@ -199,10 +192,7 @@ func TestScalarAddLikeSubNeg(t *testing.T) {
 
 		return t1 == t2 && isReduced(t1.Bytes())
 	}
-
-	if err := quick.Check(addLikeSubNeg, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(addLikeSubNeg, quickCheckConfig(1024)))
 }
 
 func TestScalarNonAdjacentForm(t *testing.T) {

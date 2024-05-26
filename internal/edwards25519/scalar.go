@@ -134,10 +134,15 @@ func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 // scalarTwo168 and scalarTwo336 are 2^168 and 2^336 modulo l, encoded as a
 // fiatScalarMontgomeryDomainFieldElement, which is a little-endian 4-limb value
 // in the 2^256 Montgomery domain.
-var scalarTwo168 = &Scalar{s: [4]uint64{0x5b8ab432eac74798, 0x38afddd6de59d5d7,
-	0xa2c131b399411b7c, 0x6329a7ed9ce5a30}}
-var scalarTwo336 = &Scalar{s: [4]uint64{0xbd3d108e2b35ecc5, 0x5c3a3718bdf9c90b,
-	0x63aa97a331b4f2ee, 0x3d217f5be65cb5c}}
+var scalarTwo168 = &Scalar{s: [4]uint64{
+	0x5b8ab432eac74798, 0x38afddd6de59d5d7,
+	0xa2c131b399411b7c, 0x6329a7ed9ce5a30,
+}}
+
+var scalarTwo336 = &Scalar{s: [4]uint64{
+	0xbd3d108e2b35ecc5, 0x5c3a3718bdf9c90b,
+	0x63aa97a331b4f2ee, 0x3d217f5be65cb5c,
+}}
 
 // setShortBytes sets s = x mod l, where x is a little-endian integer shorter
 // than 32 bytes.

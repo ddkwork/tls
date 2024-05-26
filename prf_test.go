@@ -7,6 +7,8 @@ package tls
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 type testSplitPreMasterSecretTest struct {
@@ -70,15 +72,9 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 		}
 
 		ekm := ekmFromMasterSecret(test.version, test.suite, masterSecret, clientRandom, serverRandom)
-		contextKeyingMaterial, err := ekm("label", []byte("context"), 32)
-		if err != nil {
-			t.Fatalf("ekmFromMasterSecret failed: %v", err)
-		}
+		contextKeyingMaterial := mylog.Check2(ekm("label", []byte("context"), 32))
 
-		noContextKeyingMaterial, err := ekm("label", nil, 32)
-		if err != nil {
-			t.Fatalf("ekmFromMasterSecret failed: %v", err)
-		}
+		noContextKeyingMaterial := mylog.Check2(ekm("label", nil, 32))
 
 		if hex.EncodeToString(contextKeyingMaterial) != test.contextKeyingMaterial ||
 			hex.EncodeToString(noContextKeyingMaterial) != test.noContextKeyingMaterial {

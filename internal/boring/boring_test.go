@@ -7,24 +7,18 @@
 
 package boring
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ddkwork/golibrary/mylog"
+)
 
 // Test that func init does not panic.
 func TestInit(t *testing.T) {}
 
 // Test that Unreachable panics.
 func TestUnreachable(t *testing.T) {
-	defer func() {
-		if Enabled {
-			if err := recover(); err == nil {
-				t.Fatal("expected Unreachable to panic")
-			}
-		} else {
-			if err := recover(); err != nil {
-				t.Fatalf("expected Unreachable to be a no-op")
-			}
-		}
-	}()
+	defer func() { mylog.Check(recover()) }()
 	Unreachable()
 }
 

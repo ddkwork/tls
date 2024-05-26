@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // zeroSource is an io.Reader that returns an unlimited number of zero bytes.
@@ -62,12 +64,10 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==
 		panic("failed to parse root certificate")
 	}
 
-	conn, err := tls.Dial("tcp", "mail.google.com:443", &tls.Config{
+	conn := mylog.Check2(tls.Dial("tcp", "mail.google.com:443", &tls.Config{
 		RootCAs: roots,
-	})
-	if err != nil {
-		panic("failed to connect: " + err.Error())
-	}
+	}))
+
 	conn.Close()
 }
 
@@ -100,10 +100,8 @@ func ExampleConfig_keyLogWriter() {
 			},
 		},
 	}
-	resp, err := client.Get(server.URL)
-	if err != nil {
-		log.Fatalf("Failed to get URL: %v", err)
-	}
+	resp := mylog.Check2(client.Get(server.URL))
+
 	resp.Body.Close()
 
 	// The resulting file can be used with Wireshark to decrypt the TLS
@@ -112,15 +110,11 @@ func ExampleConfig_keyLogWriter() {
 }
 
 func ExampleLoadX509KeyPair() {
-	cert, err := tls.LoadX509KeyPair("testdata/example-cert.pem", "testdata/example-key.pem")
-	if err != nil {
-		log.Fatal(err)
-	}
+	cert := mylog.Check2(tls.LoadX509KeyPair("testdata/example-cert.pem", "testdata/example-key.pem"))
+
 	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
-	listener, err := tls.Listen("tcp", ":2000", cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	listener := mylog.Check2(tls.Listen("tcp", ":2000", cfg))
+
 	_ = listener
 }
 
@@ -141,15 +135,11 @@ MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
 AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
 EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
 -----END EC PRIVATE KEY-----`)
-	cert, err := tls.X509KeyPair(certPem, keyPem)
-	if err != nil {
-		log.Fatal(err)
-	}
+	cert := mylog.Check2(tls.X509KeyPair(certPem, keyPem))
+
 	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
-	listener, err := tls.Listen("tcp", ":2000", cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	listener := mylog.Check2(tls.Listen("tcp", ":2000", cfg))
+
 	_ = listener
 }
 
@@ -170,10 +160,8 @@ MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
 AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
 EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
 -----END EC PRIVATE KEY-----`)
-	cert, err := tls.X509KeyPair(certPem, keyPem)
-	if err != nil {
-		log.Fatal(err)
-	}
+	cert := mylog.Check2(tls.X509KeyPair(certPem, keyPem))
+
 	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
 	srv := &http.Server{
 		TLSConfig:    cfg,
@@ -202,8 +190,8 @@ func ExampleConfig_verifyConnection() {
 			for _, cert := range cs.PeerCertificates[1:] {
 				opts.Intermediates.AddCert(cert)
 			}
-			_, err := cs.PeerCertificates[0].Verify(opts)
-			return err
+			mylog.Check2(cs.PeerCertificates[0].Verify(opts))
+			return nil
 		},
 	}
 
@@ -222,8 +210,8 @@ func ExampleConfig_verifyConnection() {
 			for _, cert := range cs.PeerCertificates[1:] {
 				opts.Intermediates.AddCert(cert)
 			}
-			_, err := cs.PeerCertificates[0].Verify(opts)
-			return err
+			mylog.Check2(cs.PeerCertificates[0].Verify(opts))
+			return nil
 		},
 	}
 

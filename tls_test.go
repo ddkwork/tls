@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
@@ -103,65 +105,33 @@ func TestX509KeyPair(t *testing.T) {
 	var pem []byte
 	for _, test := range keyPairTests {
 		pem = []byte(test.cert + test.key)
-		if _, err := X509KeyPair(pem, pem); err != nil {
-			t.Errorf("Failed to load %s cert followed by %s key: %s", test.algo, test.algo, err)
-		}
+		mylog.Check2(X509KeyPair(pem, pem))
+
 		pem = []byte(test.key + test.cert)
-		if _, err := X509KeyPair(pem, pem); err != nil {
-			t.Errorf("Failed to load %s key followed by %s cert: %s", test.algo, test.algo, err)
-		}
+		mylog.Check2(X509KeyPair(pem, pem))
+
 	}
 }
 
 func TestX509KeyPairErrors(t *testing.T) {
-	_, err := X509KeyPair([]byte(rsaKeyPEM), []byte(rsaCertPEM))
-	if err == nil {
-		t.Fatalf("X509KeyPair didn't return an error when arguments were switched")
-	}
-	if subStr := "been switched"; !strings.Contains(err.Error(), subStr) {
-		t.Fatalf("Expected %q in the error when switching arguments to X509KeyPair, but the error was %q", subStr, err)
-	}
-
-	_, err = X509KeyPair([]byte(rsaCertPEM), []byte(rsaCertPEM))
-	if err == nil {
-		t.Fatalf("X509KeyPair didn't return an error when both arguments were certificates")
-	}
-	if subStr := "certificate"; !strings.Contains(err.Error(), subStr) {
-		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were certificates, but the error was %q", subStr, err)
-	}
-
+	mylog.Check2(X509KeyPair([]byte(rsaKeyPEM), []byte(rsaCertPEM)))
+	mylog.Check2(X509KeyPair([]byte(rsaCertPEM), []byte(rsaCertPEM)))
 	const nonsensePEM = `
 -----BEGIN NONSENSE-----
 Zm9vZm9vZm9v
 -----END NONSENSE-----
 `
-
-	_, err = X509KeyPair([]byte(nonsensePEM), []byte(nonsensePEM))
-	if err == nil {
-		t.Fatalf("X509KeyPair didn't return an error when both arguments were nonsense")
-	}
-	if subStr := "NONSENSE"; !strings.Contains(err.Error(), subStr) {
-		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were nonsense, but the error was %q", subStr, err)
-	}
+	mylog.Check2(X509KeyPair([]byte(nonsensePEM), []byte(nonsensePEM)))
 }
 
 func TestX509MixedKeyPair(t *testing.T) {
-	if _, err := X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)); err == nil {
-		t.Error("Load of RSA certificate succeeded with ECDSA private key")
-	}
-	if _, err := X509KeyPair([]byte(ecdsaCertPEM), []byte(rsaKeyPEM)); err == nil {
-		t.Error("Load of ECDSA certificate succeeded with RSA private key")
-	}
+	mylog.Check2(X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)))
+	mylog.Check2(X509KeyPair([]byte(ecdsaCertPEM), []byte(rsaKeyPEM)))
 }
 
 func newLocalListener(t testing.TB) net.Listener {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		ln, err = net.Listen("tcp6", "[::1]:0")
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := mylog.Check2(net.Listen("tcp", "127.0.0.1:0"))
+
 	return ln
 }
 
@@ -176,11 +146,8 @@ func TestDialTimeout(t *testing.T) {
 		listener := newLocalListener(t)
 		go func() {
 			for {
-				conn, err := listener.Accept()
-				if err != nil {
-					close(acceptc)
-					return
-				}
+				conn := mylog.Check2(listener.Accept())
+
 				acceptc <- conn
 			}
 		}()
@@ -189,12 +156,8 @@ func TestDialTimeout(t *testing.T) {
 		dialer := &net.Dialer{
 			Timeout: timeout,
 		}
-		if conn, err := DialWithDialer(dialer, "tcp", addr, nil); err == nil {
-			conn.Close()
-			t.Errorf("DialWithTimeout unexpectedly completed successfully")
-		} else if !isTimeoutError(err) {
-			t.Errorf("resulting error not a timeout: %v\nType %T: %#v", err, err, err)
-		}
+		conn := mylog.Check2(DialWithDialer(dialer, "tcp", addr, nil))
+		conn.Close()
 
 		listener.Close()
 
@@ -236,64 +199,34 @@ func TestDeadlineOnWrite(t *testing.T) {
 	srvCh := make(chan *Conn, 1)
 
 	go func() {
-		sconn, err := ln.Accept()
-		if err != nil {
-			srvCh <- nil
-			return
-		}
+		sconn := mylog.Check2(ln.Accept())
+
 		srv := Server(sconn, testConfig.Clone())
-		if err := srv.Handshake(); err != nil {
-			srvCh <- nil
-			return
-		}
+		mylog.Check(srv.Handshake())
+
 		srvCh <- srv
 	}()
 
 	clientConfig := testConfig.Clone()
 	clientConfig.MaxVersion = VersionTLS12
-	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+
 	defer conn.Close()
 
 	srv := <-srvCh
-	if srv == nil {
-		t.Error(err)
-	}
+	mylog.CheckNil(srv)
 
 	// Make sure the client/server is setup correctly and is able to do a typical Write/Read
 	buf := make([]byte, 6)
-	if _, err := srv.Write([]byte("foobar")); err != nil {
-		t.Errorf("Write err: %v", err)
-	}
-	if n, err := conn.Read(buf); n != 6 || err != nil || string(buf) != "foobar" {
-		t.Errorf("Read = %d, %v, data %q; want 6, nil, foobar", n, err, buf)
-	}
+	mylog.Check2(srv.Write([]byte("foobar")))
+	mylog.Check2(conn.Read(buf))
+	mylog.Check(srv.SetDeadline(time.Now()))
+	mylog.Check2(srv.Write([]byte("should fail")))
+	mylog.Check(
 
-	// Set a deadline which should cause Write to timeout
-	if err = srv.SetDeadline(time.Now()); err != nil {
-		t.Fatalf("SetDeadline(time.Now()) err: %v", err)
-	}
-	if _, err = srv.Write([]byte("should fail")); err == nil {
-		t.Fatal("Write should have timed out")
-	}
-
-	// Clear deadline and make sure it still times out
-	if err = srv.SetDeadline(time.Time{}); err != nil {
-		t.Fatalf("SetDeadline(time.Time{}) err: %v", err)
-	}
-	if _, err = srv.Write([]byte("This connection is permanently broken")); err == nil {
-		t.Fatal("Write which previously failed should still time out")
-	}
-
-	// Verify the error
-	if ne := err.(net.Error); ne.Temporary() != false {
-		t.Error("Write timed out but incorrectly classified the error as Temporary")
-	}
-	if !isTimeoutError(err) {
-		t.Error("Write timed out but did not classify the error as a Timeout")
-	}
+		// Clear deadline and make sure it still times out
+		srv.SetDeadline(time.Time{}))
+	mylog.Check2(srv.Write([]byte("This connection is permanently broken")))
 }
 
 type readerFunc func([]byte) (int, error)
@@ -310,10 +243,8 @@ func TestDialer(t *testing.T) {
 	unblockServer := make(chan struct{}) // close-only
 	defer close(unblockServer)
 	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
+		conn := mylog.Check2(ln.Accept())
+
 		defer conn.Close()
 		<-unblockServer
 	}()
@@ -331,10 +262,7 @@ func TestDialer(t *testing.T) {
 		}),
 		ServerName: "foo",
 	}}
-	_, err := d.DialContext(ctx, "tcp", ln.Addr().String())
-	if err != context.Canceled {
-		t.Errorf("err = %v; want context.Canceled", err)
-	}
+	mylog.Check2(d.DialContext(ctx, "tcp", ln.Addr().String()))
 }
 
 func isTimeoutError(err error) bool {
@@ -357,13 +285,10 @@ func TestConnReadNonzeroAndEOF(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	var err error
+
 	for delay := time.Millisecond; delay <= 64*time.Millisecond; delay *= 2 {
-		if err = testConnReadNonzeroAndEOF(t, delay); err == nil {
-			return
-		}
+		mylog.Check(testConnReadNonzeroAndEOF(t, delay))
 	}
-	t.Error(err)
 }
 
 func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
@@ -373,19 +298,12 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	srvCh := make(chan *Conn, 1)
 	var serr error
 	go func() {
-		sconn, err := ln.Accept()
-		if err != nil {
-			serr = err
-			srvCh <- nil
-			return
-		}
+		sconn := mylog.Check2(ln.Accept())
+
 		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
-		if err := srv.Handshake(); err != nil {
-			serr = fmt.Errorf("handshake: %v", err)
-			srvCh <- nil
-			return
-		}
+		mylog.Check(srv.Handshake())
+
 		srvCh <- srv
 	}()
 
@@ -393,10 +311,8 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	// In TLS 1.3, alerts are encrypted and disguised as application data, so
 	// the opportunistic peek won't work.
 	clientConfig.MaxVersion = VersionTLS12
-	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+
 	defer conn.Close()
 
 	srv := <-srvCh
@@ -407,20 +323,14 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	buf := make([]byte, 6)
 
 	srv.Write([]byte("foobar"))
-	n, err := conn.Read(buf)
-	if n != 6 || err != nil || string(buf) != "foobar" {
-		return fmt.Errorf("Read = %d, %v, data %q; want 6, nil, foobar", n, err, buf)
-	}
+	n := mylog.Check2(conn.Read(buf))
 
 	srv.Write([]byte("abcdef"))
 	srv.Close()
 	time.Sleep(delay)
-	n, err = conn.Read(buf)
+	n = mylog.Check2(conn.Read(buf))
 	if n != 6 || string(buf) != "abcdef" {
 		return fmt.Errorf("Read = %d, buf= %q; want 6, abcdef", n, buf)
-	}
-	if err != io.EOF {
-		return fmt.Errorf("Second Read error = %v; want io.EOF", err)
 	}
 	return nil
 }
@@ -436,18 +346,13 @@ func TestTLSUniqueMatches(t *testing.T) {
 	go func() {
 		defer close(childDone)
 		for i := 0; i < 2; i++ {
-			sconn, err := ln.Accept()
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			sconn := mylog.Check2(ln.Accept())
+
 			serverConfig := testConfig.Clone()
 			serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 			srv := Server(sconn, serverConfig)
-			if err := srv.Handshake(); err != nil {
-				t.Error(err)
-				return
-			}
+			mylog.Check(srv.Handshake())
+
 			select {
 			case <-parentDone:
 				return
@@ -458,10 +363,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
-	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
 
 	var serverTLSUniquesValue []byte
 	select {
@@ -478,10 +380,8 @@ func TestTLSUniqueMatches(t *testing.T) {
 	}
 	conn.Close()
 
-	conn, err = Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn = mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+
 	defer conn.Close()
 	if !conn.ConnectionState().DidResume {
 		t.Error("second session did not use resumption")
@@ -502,26 +402,16 @@ func TestTLSUniqueMatches(t *testing.T) {
 }
 
 func TestVerifyHostname(t *testing.T) {
-	//testenv.MustHaveExternalNetwork(t)
+	// testenv.MustHaveExternalNetwork(t)
 	t.Skip("todo make china site for TestVerifyHostname")
-	c, err := Dial("tcp", "www.google.com:https", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.VerifyHostname("www.google.com"); err != nil {
-		t.Fatalf("verify www.google.com: %v", err)
-	}
-	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
-		t.Fatalf("verify www.yahoo.com succeeded")
-	}
+	c := mylog.Check2(Dial("tcp", "www.google.com:https", nil))
+	mylog.Check(c.VerifyHostname("www.google.com"))
 
-	c, err = Dial("tcp", "www.google.com:https", &Config{InsecureSkipVerify: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.VerifyHostname("www.google.com"); err == nil {
-		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
-	}
+	mylog.Check(c.VerifyHostname("www.yahoo.com"))
+
+	c = mylog.Check2(Dial("tcp", "www.google.com:https", &Config{InsecureSkipVerify: true}))
+
+	mylog.Check(c.VerifyHostname("www.google.com"))
 }
 
 func TestConnCloseBreakingWrite(t *testing.T) {
@@ -532,27 +422,17 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	var serr error
 	var sconn net.Conn
 	go func() {
-		var err error
-		sconn, err = ln.Accept()
-		if err != nil {
-			serr = err
-			srvCh <- nil
-			return
-		}
+		sconn = mylog.Check2(ln.Accept())
+
 		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
-		if err := srv.Handshake(); err != nil {
-			serr = fmt.Errorf("handshake: %v", err)
-			srvCh <- nil
-			return
-		}
+		mylog.Check(srv.Handshake())
+
 		srvCh <- srv
 	}()
 
-	cconn, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cconn := mylog.Check2(net.Dial("tcp", ln.Addr().String()))
+
 	defer cconn.Close()
 
 	conn := &changeImplConn{
@@ -561,9 +441,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 
 	clientConfig := testConfig.Clone()
 	tconn := Client(conn, clientConfig)
-	if err := tconn.Handshake(); err != nil {
-		t.Fatal(err)
-	}
+	mylog.Check(tconn.Handshake())
 
 	srv := <-srvCh
 	if srv == nil {
@@ -578,7 +456,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}
 
 	inWrite := make(chan bool, 1)
-	var errConnClosed = errors.New("conn closed for test")
+	errConnClosed := errors.New("conn closed for test")
 	conn.writeFunc = func(p []byte) (n int, err error) {
 		inWrite <- true
 		<-connClosed
@@ -592,15 +470,10 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		closeReturned <- true
 	}()
 
-	_, err = tconn.Write([]byte("foo"))
-	if err != errConnClosed {
-		t.Errorf("Write error = %v; want errConnClosed", err)
-	}
+	mylog.Check2(tconn.Write([]byte("foo")))
 
 	<-closeReturned
-	if err := tconn.Close(); err != net.ErrClosed {
-		t.Errorf("Close error = %v; want net.ErrClosed", err)
-	}
+	mylog.Check(tconn.Close())
 }
 
 func TestConnCloseWrite(t *testing.T) {
@@ -610,30 +483,22 @@ func TestConnCloseWrite(t *testing.T) {
 	clientDoneChan := make(chan struct{})
 
 	serverCloseWrite := func() error {
-		sconn, err := ln.Accept()
-		if err != nil {
-			return fmt.Errorf("accept: %v", err)
-		}
+		sconn := mylog.Check2(ln.Accept())
+
 		defer sconn.Close()
 
 		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
-		if err := srv.Handshake(); err != nil {
-			return fmt.Errorf("handshake: %v", err)
-		}
+		mylog.Check(srv.Handshake())
+
 		defer srv.Close()
 
-		data, err := io.ReadAll(srv)
-		if err != nil {
-			return err
-		}
+		data := mylog.Check2(io.ReadAll(srv))
+
 		if len(data) > 0 {
 			return fmt.Errorf("Read data = %q; want nothing", data)
 		}
-
-		if err := srv.CloseWrite(); err != nil {
-			return fmt.Errorf("server CloseWrite: %v", err)
-		}
+		mylog.Check(srv.CloseWrite())
 
 		// Wait for clientCloseWrite to finish, so we know we
 		// tested the CloseWrite before we defer the
@@ -647,27 +512,13 @@ func TestConnCloseWrite(t *testing.T) {
 		defer close(clientDoneChan)
 
 		clientConfig := testConfig.Clone()
-		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-		if err != nil {
-			return err
-		}
-		if err := conn.Handshake(); err != nil {
-			return err
-		}
+		conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+		mylog.Check(conn.Handshake())
+
 		defer conn.Close()
-
-		if err := conn.CloseWrite(); err != nil {
-			return fmt.Errorf("client CloseWrite: %v", err)
-		}
-
-		if _, err := conn.Write([]byte{0}); err != errShutdown {
-			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
-		}
-
-		data, err := io.ReadAll(conn)
-		if err != nil {
-			return err
-		}
+		mylog.Check(conn.CloseWrite())
+		mylog.Check2(conn.Write([]byte{0}))
+		data := mylog.Check2(io.ReadAll(conn))
 		if len(data) > 0 {
 			return fmt.Errorf("Read data = %q; want nothing", data)
 		}
@@ -681,10 +532,8 @@ func TestConnCloseWrite(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		select {
-		case err := <-errChan:
-			if err != nil {
-				t.Fatal(err)
-			}
+		// case err := <-errChan:
+
 		case <-time.After(10 * time.Second):
 			t.Fatal("deadlock")
 		}
@@ -696,16 +545,11 @@ func TestConnCloseWrite(t *testing.T) {
 		ln2 := newLocalListener(t)
 		defer ln2.Close()
 
-		netConn, err := net.Dial("tcp", ln2.Addr().String())
-		if err != nil {
-			t.Fatal(err)
-		}
+		netConn := mylog.Check2(net.Dial("tcp", ln2.Addr().String()))
+
 		defer netConn.Close()
 		conn := Client(netConn, testConfig.Clone())
-
-		if err := conn.CloseWrite(); err != errEarlyCloseWrite {
-			t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
-		}
+		mylog.Check(conn.CloseWrite())
 	}
 }
 
@@ -714,28 +558,16 @@ func TestWarningAlertFlood(t *testing.T) {
 	defer ln.Close()
 
 	server := func() error {
-		sconn, err := ln.Accept()
-		if err != nil {
-			return fmt.Errorf("accept: %v", err)
-		}
+		sconn := mylog.Check2(ln.Accept())
+
 		defer sconn.Close()
 
 		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
-		if err := srv.Handshake(); err != nil {
-			return fmt.Errorf("handshake: %v", err)
-		}
+		mylog.Check(srv.Handshake())
 		defer srv.Close()
-
-		_, err = io.ReadAll(srv)
-		if err == nil {
-			return errors.New("unexpected lack of error from server")
-		}
+		mylog.Check2(io.ReadAll(srv))
 		const expected = "too many ignored"
-		if str := err.Error(); !strings.Contains(str, expected) {
-			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
-		}
-
 		return nil
 	}
 
@@ -744,22 +576,15 @@ func TestWarningAlertFlood(t *testing.T) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
-	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+
 	defer conn.Close()
-	if err := conn.Handshake(); err != nil {
-		t.Fatal(err)
-	}
+	mylog.Check(conn.Handshake())
 
 	for i := 0; i < maxUselessRecords+1; i++ {
 		conn.sendAlert(alertNoRenegotiation)
 	}
-
-	if err := <-errChan; err != nil {
-		t.Fatal(err)
-	}
+	mylog.Check(<-errChan)
 }
 
 func TestCloneFuncFields(t *testing.T) {
@@ -922,22 +747,18 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 	go func() {
 		buf := make([]byte, bufsize)
 		for i := 0; i < N; i++ {
-			sconn, err := ln.Accept()
-			if err != nil {
-				// panic rather than synchronize to avoid benchmark overhead
-				// (cannot call b.Fatal in goroutine)
-				panic(fmt.Errorf("accept: %v", err))
-			}
+			sconn := mylog.Check2(ln.Accept())
+
+			// panic rather than synchronize to avoid benchmark overhead
+			// (cannot call b.Fatal in goroutine)
+
 			serverConfig := testConfig.Clone()
 			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
-			if err := srv.Handshake(); err != nil {
-				panic(fmt.Errorf("handshake: %v", err))
-			}
-			if _, err := io.CopyBuffer(srv, srv, buf); err != nil {
-				panic(fmt.Errorf("copy buffer: %v", err))
-			}
+			mylog.Check(srv.Handshake())
+			mylog.Check2(io.CopyBuffer(srv, srv, buf))
+
 		}
 	}()
 
@@ -950,19 +771,10 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 	buf := make([]byte, bufsize)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
 	for i := 0; i < N; i++ {
-		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-		if err != nil {
-			b.Fatal(err)
-		}
+		conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
 		for j := 0; j < chunks; j++ {
-			_, err := conn.Write(buf)
-			if err != nil {
-				b.Fatal(err)
-			}
-			_, err = io.ReadFull(conn, buf)
-			if err != nil {
-				b.Fatal(err)
-			}
+			mylog.Check2(conn.Write(buf))
+			mylog.Check2(io.ReadFull(conn, buf))
 		}
 		conn.Close()
 	}
@@ -1002,11 +814,9 @@ func (c *slowConn) Write(p []byte) (int, error) {
 			allowed = len(p)
 		}
 		if wrote < allowed {
-			n, err := c.Conn.Write(p[wrote:allowed])
+			n := mylog.Check2(c.Conn.Write(p[wrote:allowed]))
 			wrote += n
-			if err != nil {
-				return wrote, err
-			}
+
 		}
 	}
 	return len(p), nil
@@ -1020,18 +830,16 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 
 	go func() {
 		for i := 0; i < N; i++ {
-			sconn, err := ln.Accept()
-			if err != nil {
-				// panic rather than synchronize to avoid benchmark overhead
-				// (cannot call b.Fatal in goroutine)
-				panic(fmt.Errorf("accept: %v", err))
-			}
+			sconn := mylog.Check2(ln.Accept())
+
+			// panic rather than synchronize to avoid benchmark overhead
+			// (cannot call b.Fatal in goroutine)
+
 			serverConfig := testConfig.Clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, serverConfig)
-			if err := srv.Handshake(); err != nil {
-				panic(fmt.Errorf("handshake: %v", err))
-			}
+			mylog.Check(srv.Handshake())
+
 			io.Copy(srv, srv)
 		}
 	}()
@@ -1044,23 +852,15 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 	peek := make([]byte, 1)
 
 	for i := 0; i < N; i++ {
-		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
-		if err != nil {
-			b.Fatal(err)
-		}
-		// make sure we're connected and previous connection has stopped
-		if _, err := conn.Write(buf[:1]); err != nil {
-			b.Fatal(err)
-		}
-		if _, err := io.ReadFull(conn, peek); err != nil {
-			b.Fatal(err)
-		}
-		if _, err := conn.Write(buf); err != nil {
-			b.Fatal(err)
-		}
-		if _, err = io.ReadFull(conn, peek); err != nil {
-			b.Fatal(err)
-		}
+		conn := mylog.Check2(Dial("tcp", ln.Addr().String(), clientConfig))
+		mylog.Check2(
+
+			// make sure we're connected and previous connection has stopped
+			conn.Write(buf[:1]))
+		mylog.Check2(io.ReadFull(conn, peek))
+		mylog.Check2(conn.Write(buf))
+		mylog.Check2(io.ReadFull(conn, peek))
+
 		conn.Close()
 	}
 }
@@ -1083,17 +883,12 @@ func BenchmarkLatency(b *testing.B) {
 
 func TestConnectionStateMarshal(t *testing.T) {
 	cs := &ConnectionState{}
-	_, err := json.Marshal(cs)
-	if err != nil {
-		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
-	}
+	mylog.Check2(json.Marshal(cs))
 }
 
 func TestConnectionState(t *testing.T) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		panic(err)
-	}
+	issuer := mylog.Check2(x509.ParseCertificate(testRSACertificateIssuer))
+
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
@@ -1101,8 +896,8 @@ func TestConnectionState(t *testing.T) {
 
 	const alpnProtocol = "golang"
 	const serverName = "example.golang"
-	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
-	var ocsp = []byte("dummy ocsp")
+	scts := [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+	ocsp := []byte("dummy ocsp")
 
 	for _, v := range []uint16{VersionTLS12, VersionTLS13} {
 		var name string
@@ -1129,10 +924,7 @@ func TestConnectionState(t *testing.T) {
 			config.Certificates[0].SignedCertificateTimestamps = scts
 			config.Certificates[0].OCSPStaple = ocsp
 
-			ss, cs, err := testHandshake(t, config, config)
-			if err != nil {
-				t.Fatalf("Handshake failed: %v", err)
-			}
+			ss, cs := mylog.Check3(testHandshake(t, config, config))
 
 			if ss.Version != v || cs.Version != v {
 				t.Errorf("Got versions %x (server) and %x (client), expected %x", ss.Version, cs.Version, v)
@@ -1390,16 +1182,8 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			},
 		}, ""}, // static RSA fallback
 	}
-	for i, tt := range tests {
-		err := tt.chi.SupportsCertificate(tt.c)
-		switch {
-		case tt.wantErr == "" && err != nil:
-			t.Errorf("%d: unexpected error: %v", i, err)
-		case tt.wantErr != "" && err == nil:
-			t.Errorf("%d: unexpected success", i)
-		case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
-			t.Errorf("%d: got error %q, expected %q", i, err, tt.wantErr)
-		}
+	for _, tt := range tests {
+		mylog.Check(tt.chi.SupportsCertificate(tt.c))
 	}
 }
 
@@ -1647,18 +1431,13 @@ func TestPKCS1OnlyCert(t *testing.T) {
 	serverConfig.ClientAuth = RequireAnyClientCert
 
 	// If RSA-PSS is selected, the handshake should fail.
-	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
-		t.Fatal("expected broken certificate to cause connection to fail")
-	}
-
-	clientConfig.Certificates[0].SupportedSignatureAlgorithms =
-		[]SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
+	mylog.Check3(testHandshake(t, clientConfig, serverConfig))
+	t.Fatal("expected broken certificate to cause connection to fail")
+	clientConfig.Certificates[0].SupportedSignatureAlgorithms = []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
 
 	// But if the certificate restricts supported algorithms, RSA-PSS should not
 	// be selected, and the handshake should succeed.
-	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
-		t.Error(err)
-	}
+	mylog.Check3(testHandshake(t, clientConfig, serverConfig))
 }
 
 func TestVerifyCertificates(t *testing.T) {
@@ -1712,10 +1491,8 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 		},
 	}
 
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		t.Fatal(err)
-	}
+	issuer := mylog.Check2(x509.ParseCertificate(testRSACertificateIssuer))
+
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
@@ -1760,9 +1537,7 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 				clientConfig.Certificates = nil
 			}
 
-			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
-				t.Fatal(err)
-			}
+			mylog.Check3(testHandshake(t, clientConfig, serverConfig))
 
 			want := serverConfig.ClientAuth != NoClientCert
 			if serverVerifyPeerCertificates != want {
@@ -1781,10 +1556,8 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 
 			serverVerifyPeerCertificates, clientVerifyPeerCertificates = false, false
 			serverVerifyConnection, clientVerifyConnection = false, false
-			cs, _, err := testHandshake(t, clientConfig, serverConfig)
-			if err != nil {
-				t.Fatal(err)
-			}
+			cs, _ := mylog.Check3(testHandshake(t, clientConfig, serverConfig))
+
 			if !cs.DidResume {
 				t.Error("expected resumption")
 			}

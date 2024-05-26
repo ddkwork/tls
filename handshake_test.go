@@ -16,12 +16,13 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // TLS reference tests run a connection against a reference implementation
@@ -69,10 +70,7 @@ func checkOpenSSLVersion() error {
 	}
 
 	openssl := exec.Command("openssl", "version")
-	output, err := openssl.CombinedOutput()
-	if err != nil {
-		return err
-	}
+	output := mylog.Check2(openssl.CombinedOutput())
 
 	version := string(output)
 	if strings.HasPrefix(version, "OpenSSL 1.1.1") {
@@ -103,7 +101,7 @@ type recordingConn struct {
 }
 
 func (r *recordingConn) Read(b []byte) (n int, err error) {
-	if n, err = r.Conn.Read(b); n == 0 {
+	if n = mylog.Check2(r.Conn.Read(b)); n == 0 {
 		return
 	}
 	b = b[:n]
@@ -123,7 +121,7 @@ func (r *recordingConn) Read(b []byte) (n int, err error) {
 }
 
 func (r *recordingConn) Write(b []byte) (n int, err error) {
-	if n, err = r.Conn.Write(b); n == 0 {
+	if n = mylog.Check2(r.Conn.Write(b)); n == 0 {
 		return
 	}
 	b = b[:n]
@@ -152,21 +150,14 @@ func (r *recordingConn) WriteTo(w io.Writer) (int64, error) {
 		if !clientToServer {
 			source, dest = dest, source
 		}
-		n, err := fmt.Fprintf(w, ">>> Flow %d (%s to %s)\n", i+1, source, dest)
+		n := mylog.Check2(fmt.Fprintf(w, ">>> Flow %d (%s to %s)\n", i+1, source, dest))
 		written += int64(n)
-		if err != nil {
-			return written, err
-		}
+
 		dumper := hex.Dumper(w)
-		n, err = dumper.Write(flow)
+		n = mylog.Check2(dumper.Write(flow))
 		written += int64(n)
-		if err != nil {
-			return written, err
-		}
-		err = dumper.Close()
-		if err != nil {
-			return written, err
-		}
+		mylog.Check(dumper.Close())
+
 		clientToServer = !clientToServer
 	}
 	return written, nil
@@ -205,10 +196,8 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 
 		hexBytes := strings.Fields(line)
 		for _, hexByte := range hexBytes {
-			val, err := strconv.ParseUint(hexByte, 16, 8)
-			if err != nil {
-				return nil, errors.New("invalid hex byte in test data: " + err.Error())
-			}
+			val := mylog.Check2(strconv.ParseUint(hexByte, 16, 8))
+
 			currentFlow = append(currentFlow, byte(val))
 		}
 	}
@@ -222,10 +211,8 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 
 // tempFile creates a temp file containing contents and returns its path.
 func tempFile(contents string) string {
-	file, err := os.CreateTemp("", "go-tls-test")
-	if err != nil {
-		panic("failed to create temp file: " + err.Error())
-	}
+	file := mylog.Check2(os.CreateTemp("", "go-tls-test"))
+
 	path := file.Name()
 	file.WriteString(contents)
 	file.Close()
@@ -243,17 +230,16 @@ var localListener struct {
 const localFlakes = 0 // change to 1 or 2 to exercise localServer/localPipe handling of mismatches
 
 func localServer(l net.Listener) {
-	for n := 0; ; n++ {
-		c, err := l.Accept()
-		if err != nil {
-			return
+	mylog.Call(func() {
+		for n := 0; ; n++ {
+			c := mylog.Check2(l.Accept())
+			if localFlakes == 1 && n%2 == 0 { // todo
+				c.Close()
+				continue
+			}
+			localListener.ch <- c
 		}
-		if localFlakes == 1 && n%2 == 0 {
-			c.Close()
-			continue
-		}
-		localListener.ch <- c
-	}
+	})
 }
 
 var isConnRefused = func(err error) bool { return false }
@@ -264,23 +250,17 @@ func localPipe(t testing.TB) (net.Conn, net.Conn) {
 
 	addr := localListener.addr
 
-	var err error
 Dialing:
 	// We expect a rare mismatch, but probably not 5 in a row.
 	for i := 0; i < 5; i++ {
 		tooSlow := time.NewTimer(1 * time.Second)
 		defer tooSlow.Stop()
 		var c1 net.Conn
-		c1, err = net.Dial(addr.Network(), addr.String())
-		if err != nil {
-			if runtime.GOOS == "dragonfly" && (isConnRefused(err) || os.IsTimeout(err)) {
-				// golang.org/issue/29583: Dragonfly sometimes returns a spurious
-				// ECONNREFUSED or ETIMEDOUT.
-				<-tooSlow.C
-				continue
-			}
-			t.Fatalf("localPipe: %v", err)
-		}
+		c1 = mylog.Check2(net.Dial(addr.Network(), addr.String()))
+
+		// golang.org/issue/29583: Dragonfly sometimes returns a spurious
+		// ECONNREFUSED or ETIMEDOUT.
+
 		if localFlakes == 2 && i == 0 {
 			c1.Close()
 			continue
@@ -302,7 +282,7 @@ Dialing:
 		}
 	}
 
-	t.Fatalf("localPipe: failed to connect: %v", err)
+	t.Fatalf("localPipe: failed to connect: %v", nil)
 	panic("unreachable")
 }
 
@@ -329,8 +309,10 @@ func allCipherSuites() []uint16 {
 var testConfig *Config
 
 func TestMain(m *testing.M) {
-	flag.Parse()
-	os.Exit(runMain(m))
+	mylog.Call(func() {
+		flag.Parse()
+		runMain(m)
+	})
 }
 
 func runMain(m *testing.M) int {
@@ -339,23 +321,13 @@ func runMain(m *testing.M) int {
 	hasAESGCMHardwareSupport = false
 
 	// Set up localPipe.
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		l, err = net.Listen("tcp6", "[::1]:0")
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open local listener: %v", err)
-		os.Exit(1)
-	}
+	l := mylog.Check2(net.Listen("tcp", "127.0.0.1:0"))
+
 	localListener.ch = make(chan net.Conn)
 	localListener.addr = l.Addr()
 	defer l.Close()
 	go localServer(l)
-
-	if err := checkOpenSSLVersion(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v", err)
-		os.Exit(1)
-	}
+	mylog.Check(checkOpenSSLVersion())
 
 	testConfig = &Config{
 		Time:               func() time.Time { return time.Unix(0, 0) },
@@ -372,10 +344,8 @@ func runMain(m *testing.M) int {
 	testConfig.Certificates[1].PrivateKey = testRSAPrivateKey
 	testConfig.BuildNameToCertificate()
 	if *keyFile != "" {
-		f, err := os.OpenFile(*keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			panic("failed to open -keylog file: " + err.Error())
-		}
+		f := mylog.Check2(os.OpenFile(*keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
+
 		testConfig.KeyLogWriter = f
 		defer f.Close()
 	}
@@ -389,33 +359,24 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 	errChan := make(chan error)
 	go func() {
 		cli := Client(c, clientConfig)
-		err := cli.Handshake()
-		if err != nil {
-			errChan <- fmt.Errorf("client: %v", err)
-			c.Close()
-			return
-		}
+		mylog.Check(cli.Handshake())
+
 		defer cli.Close()
 		clientState = cli.ConnectionState()
-		buf, err := io.ReadAll(cli)
-		if err != nil {
-			t.Errorf("failed to call cli.Read: %v", err)
-		}
+		buf := mylog.Check2(io.ReadAll(cli))
+
 		if got := string(buf); got != sentinel {
 			t.Errorf("read %q from TLS connection, but expected %q", got, sentinel)
 		}
 		errChan <- nil
 	}()
 	server := Server(s, serverConfig)
-	err = server.Handshake()
+	mylog.Check(server.Handshake())
 	if err == nil {
 		serverState = server.ConnectionState()
-		if _, err := io.WriteString(server, sentinel); err != nil {
-			t.Errorf("failed to call server.Write: %v", err)
-		}
-		if err := server.Close(); err != nil {
-			t.Errorf("failed to call server.Close: %v", err)
-		}
+		mylog.Check2(io.WriteString(server, sentinel))
+		mylog.Check(server.Close())
+
 		err = <-errChan
 	} else {
 		s.Close()

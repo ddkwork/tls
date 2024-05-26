@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/ddkwork/golibrary/mylog"
 	. "github.com/mmcloughlin/avo/build"
 	. "github.com/mmcloughlin/avo/gotypes"
 	. "github.com/mmcloughlin/avo/operand"
@@ -286,9 +287,7 @@ func maskAndAdd(r, mask, c GPVirtual, i uint64) {
 }
 
 func mustAddr(c Component) Op {
-	b, err := c.Resolve()
-	if err != nil {
-		panic(err)
-	}
+	b := mylog.Check2(c.Resolve())
+
 	return b.Addr
 }

@@ -20,6 +20,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // A Conn represents a secured connection.
@@ -192,10 +194,9 @@ func (e *permanentError) Timeout() bool   { return e.err.Timeout() }
 func (e *permanentError) Temporary() bool { return false }
 
 func (hc *halfConn) setErrorLocked(err error) error {
-	if e, ok := err.(net.Error); ok {
+	var e net.Error
+	if errors.As(err, &e) {
 		hc.err = &permanentError{err: e}
-	} else {
-		hc.err = err
 	}
 	return hc.err
 }
@@ -375,11 +376,8 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 				additionalData = append(additionalData, byte(n>>8), byte(n))
 			}
 
-			var err error
-			plaintext, err = c.Open(payload[:0], nonce, payload, additionalData)
-			if err != nil {
-				return nil, 0, alertBadRecordMAC
-			}
+			plaintext = mylog.Check2(c.Open(payload[:0], nonce, payload, additionalData))
+
 		case cbcMode:
 			blockSize := c.BlockSize()
 			minPayload := explicitNonceLen + roundUp(hc.mac.Size()+1, blockSize)
@@ -495,9 +493,7 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 			// (see the Sweet32 attack).
 			copy(explicitNonce, hc.seq[:])
 		} else {
-			if _, err := io.ReadFull(rand, explicitNonce); err != nil {
-				return nil, err
-			}
+			mylog.Check2(io.ReadFull(rand, explicitNonce))
 		}
 	}
 
@@ -673,19 +669,12 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		msg := fmt.Sprintf("oversized record received with length %d", n)
 		return c.in.setErrorLocked(c.newRecordHeaderError(nil, msg))
 	}
-	if err := c.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
-		if e, ok := err.(net.Error); !ok || !e.Temporary() {
-			c.in.setErrorLocked(err)
-		}
-		return err
-	}
+	mylog.Check(c.readFromUntil(c.conn, recordHeaderLen+n))
 
 	// Process message.
 	record := c.rawInput.Next(recordHeaderLen + n)
-	data, typ, err := c.in.decrypt(record)
-	if err != nil {
-		return c.in.setErrorLocked(c.sendAlert(err.(alert)))
-	}
+	data, typ := mylog.Check3(c.in.decrypt(record))
+
 	if len(data) > maxPlaintext {
 		return c.in.setErrorLocked(c.sendAlert(alertRecordOverflow))
 	}
@@ -751,9 +740,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		if !expectChangeCipherSpec {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
-		if err := c.in.changeCipherSpec(); err != nil {
-			return c.in.setErrorLocked(c.sendAlert(err.(alert)))
-		}
+		mylog.Check(c.in.changeCipherSpec())
 
 	case recordTypeApplicationData:
 		if !handshakeComplete || expectChangeCipherSpec {
@@ -824,8 +811,8 @@ func (c *Conn) readFromUntil(r io.Reader, n int) error {
 	// attempt to fetch it so that it can be used in (*Conn).Read to
 	// "predict" closeNotify alerts.
 	c.rawInput.Grow(needs + bytes.MinRead)
-	_, err := c.rawInput.ReadFrom(&atLeastReader{r, int64(needs)})
-	return err
+	mylog.Check2(c.rawInput.ReadFrom(&atLeastReader{r, int64(needs)}))
+	return nil
 }
 
 // sendAlertLocked sends a TLS alert message.
@@ -941,9 +928,9 @@ func (c *Conn) write(data []byte) (int, error) {
 		return len(data), nil
 	}
 
-	n, err := c.conn.Write(data)
+	n := mylog.Check2(c.conn.Write(data))
 	c.bytesSent += int64(n)
-	return n, err
+	return n, nil
 }
 
 func (c *Conn) flush() (int, error) {
@@ -951,11 +938,11 @@ func (c *Conn) flush() (int, error) {
 		return 0, nil
 	}
 
-	n, err := c.conn.Write(c.sendBuf)
+	n := mylog.Check2(c.conn.Write(c.sendBuf))
 	c.bytesSent += int64(n)
 	c.sendBuf = nil
 	c.buffering = false
-	return n, err
+	return n, nil
 }
 
 // outBufPool pools the record-sized scratch buffers used by writeRecordLocked.
@@ -974,9 +961,7 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 		}
 		c.quicWriteCryptoData(c.out.level, data)
 		if !c.buffering {
-			if _, err := c.flush(); err != nil {
-				return 0, err
-			}
+			mylog.Check2(c.flush())
 		}
 		return len(data), nil
 	}
@@ -1017,22 +1002,15 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 		outBuf[3] = byte(m >> 8)
 		outBuf[4] = byte(m)
 
-		var err error
-		outBuf, err = c.out.encrypt(outBuf, data[:m], c.config.rand())
-		if err != nil {
-			return n, err
-		}
-		if _, err := c.write(outBuf); err != nil {
-			return n, err
-		}
+		outBuf = mylog.Check2(c.out.encrypt(outBuf, data[:m], c.config.rand()))
+		mylog.Check2(c.write(outBuf))
+
 		n += m
 		data = data[m:]
 	}
 
 	if typ == recordTypeChangeCipherSpec && c.vers != VersionTLS13 {
-		if err := c.out.changeCipherSpec(); err != nil {
-			return n, c.sendAlertLocked(err.(alert))
-		}
+		mylog.Check(c.out.changeCipherSpec())
 	}
 
 	return n, nil
@@ -1045,10 +1023,8 @@ func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptH
 	c.out.Lock()
 	defer c.out.Unlock()
 
-	data, err := msg.marshal()
-	if err != nil {
-		return 0, err
-	}
+	data := mylog.Check2(msg.marshal())
+
 	if transcript != nil {
 		transcript.Write(data)
 	}
@@ -1061,8 +1037,8 @@ func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptH
 func (c *Conn) writeChangeCipherRecord() error {
 	c.out.Lock()
 	defer c.out.Unlock()
-	_, err := c.writeRecordLocked(recordTypeChangeCipherSpec, []byte{1})
-	return err
+	mylog.Check2(c.writeRecordLocked(recordTypeChangeCipherSpec, []byte{1}))
+	return nil
 }
 
 // readHandshakeBytes reads handshake data until c.hand contains at least n bytes.
@@ -1071,9 +1047,7 @@ func (c *Conn) readHandshakeBytes(n int) error {
 		return c.quicReadHandshakeBytes(n)
 	}
 	for c.hand.Len() < n {
-		if err := c.readRecord(); err != nil {
-			return err
-		}
+		mylog.Check(c.readRecord())
 	}
 	return nil
 }
@@ -1082,18 +1056,16 @@ func (c *Conn) readHandshakeBytes(n int) error {
 // the record layer. If transcript is non-nil, the message
 // is written to the passed transcriptHash.
 func (c *Conn) readHandshake(transcript transcriptHash) (any, error) {
-	if err := c.readHandshakeBytes(4); err != nil {
-		return nil, err
-	}
+	mylog.Check(c.readHandshakeBytes(4))
+
 	data := c.hand.Bytes()
 	n := int(data[1])<<16 | int(data[2])<<8 | int(data[3])
 	if n > maxHandshake {
 		c.sendAlertLocked(alertInternalError)
 		return nil, c.in.setErrorLocked(fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake))
 	}
-	if err := c.readHandshakeBytes(4 + n); err != nil {
-		return nil, err
-	}
+	mylog.Check(c.readHandshakeBytes(4 + n))
+
 	data = c.hand.Next(4 + n)
 	return c.unmarshalHandshakeMessage(data, transcript)
 }
@@ -1167,9 +1139,7 @@ func (c *Conn) unmarshalHandshakeMessage(data []byte, transcript transcriptHash)
 	return m, nil
 }
 
-var (
-	errShutdown = errors.New("tls: protocol is shutdown")
-)
+var errShutdown = errors.New("tls: protocol is shutdown")
 
 // Write writes data to the connection.
 //
@@ -1189,17 +1159,11 @@ func (c *Conn) Write(b []byte) (int, error) {
 		}
 	}
 	defer c.activeCall.Add(-2)
-
-	if err := c.Handshake(); err != nil {
-		return 0, err
-	}
+	mylog.Check(c.Handshake())
 
 	c.out.Lock()
 	defer c.out.Unlock()
-
-	if err := c.out.err; err != nil {
-		return 0, err
-	}
+	mylog.Check(c.out.err)
 
 	if !c.isHandshakeComplete.Load() {
 		return 0, alertInternalError
@@ -1221,16 +1185,13 @@ func (c *Conn) Write(b []byte) (int, error) {
 	var m int
 	if len(b) > 1 && c.vers == VersionTLS10 {
 		if _, ok := c.out.cipher.(cipher.BlockMode); ok {
-			n, err := c.writeRecordLocked(recordTypeApplicationData, b[:1])
-			if err != nil {
-				return n, c.out.setErrorLocked(err)
-			}
+			mylog.Check2(c.writeRecordLocked(recordTypeApplicationData, b[:1]))
 			m, b = 1, b[1:]
 		}
 	}
 
-	n, err := c.writeRecordLocked(recordTypeApplicationData, b)
-	return n + m, c.out.setErrorLocked(err)
+	n := mylog.Check2(c.writeRecordLocked(recordTypeApplicationData, b))
+	return n + m, c.out.setErrorLocked(nil)
 }
 
 // handleRenegotiation processes a HelloRequest handshake message.
@@ -1239,10 +1200,7 @@ func (c *Conn) handleRenegotiation() error {
 		return errors.New("tls: internal error: unexpected renegotiation")
 	}
 
-	msg, err := c.readHandshake(nil)
-	if err != nil {
-		return err
-	}
+	msg := mylog.Check2(c.readHandshake(nil))
 
 	helloReq, ok := msg.(*helloRequestMsg)
 	if !ok {
@@ -1285,10 +1243,8 @@ func (c *Conn) handlePostHandshakeMessage() error {
 		return c.handleRenegotiation()
 	}
 
-	msg, err := c.readHandshake(nil)
-	if err != nil {
-		return err
-	}
+	msg := mylog.Check2(c.readHandshake(nil))
+
 	c.retryCount++
 	if c.retryCount > maxUselessRecords {
 		c.sendAlert(alertUnexpectedMessage)
@@ -1328,16 +1284,11 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 		defer c.out.Unlock()
 
 		msg := &keyUpdateMsg{}
-		msgBytes, err := msg.marshal()
-		if err != nil {
-			return err
-		}
-		_, err = c.writeRecordLocked(recordTypeHandshake, msgBytes)
-		if err != nil {
-			// Surface the error at the next write.
-			c.out.setErrorLocked(err)
-			return nil
-		}
+		msgBytes := mylog.Check2(msg.marshal())
+
+		_ = mylog.Check2(c.writeRecordLocked(recordTypeHandshake, msgBytes))
+
+		// Surface the error at the next write.
 
 		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
 		c.out.setTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
@@ -1353,9 +1304,8 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 // has not yet completed. See [Conn.SetDeadline], [Conn.SetReadDeadline], and
 // [Conn.SetWriteDeadline].
 func (c *Conn) Read(b []byte) (int, error) {
-	if err := c.Handshake(); err != nil {
-		return 0, err
-	}
+	mylog.Check(c.Handshake())
+
 	if len(b) == 0 {
 		// Put this after Handshake, in case people were calling
 		// Read(nil) for the side effect of the Handshake.
@@ -1366,13 +1316,10 @@ func (c *Conn) Read(b []byte) (int, error) {
 	defer c.in.Unlock()
 
 	for c.input.Len() == 0 {
-		if err := c.readRecord(); err != nil {
-			return 0, err
-		}
+		mylog.Check(c.readRecord())
+
 		for c.hand.Len() > 0 {
-			if err := c.handlePostHandshakeMessage(); err != nil {
-				return 0, err
-			}
+			mylog.Check(c.handlePostHandshakeMessage())
 		}
 	}
 
@@ -1420,14 +1367,10 @@ func (c *Conn) Close() error {
 
 	var alertErr error
 	if c.isHandshakeComplete.Load() {
-		if err := c.closeNotify(); err != nil {
-			alertErr = fmt.Errorf("tls: failed to send closeNotify alert (but connection was closed anyway): %w", err)
-		}
+		mylog.Check(c.closeNotify())
 	}
+	mylog.Check(c.conn.Close())
 
-	if err := c.conn.Close(); err != nil {
-		return err
-	}
 	return alertErr
 }
 
@@ -1538,10 +1481,8 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
+	mylog.Check(c.handshakeErr)
 
-	if err := c.handshakeErr; err != nil {
-		return err
-	}
 	if c.isHandshakeComplete.Load() {
 		return nil
 	}
@@ -1599,8 +1540,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	return c.connectionStateLocked()
 }
 
-//var tlsunsafeekm = godebug.New("tlsunsafeekm")
-
+// var tlsunsafeekm = godebug.New("tlsunsafeekm")
 func (c *Conn) connectionStateLocked() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.isHandshakeComplete.Load()

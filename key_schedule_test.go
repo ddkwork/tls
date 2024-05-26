@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // This file contains tests derived from draft-ietf-tls-tls13-vectors-07.
@@ -24,10 +26,8 @@ func parseVector(v string) []byte {
 	}, v)
 	parts := strings.Split(v, ":")
 	v = parts[len(parts)-1]
-	res, err := hex.DecodeString(v)
-	if err != nil {
-		panic(err)
-	}
+	res := mylog.Check2(hex.DecodeString(v))
+
 	return res
 }
 

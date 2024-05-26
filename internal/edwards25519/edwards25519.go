@@ -6,6 +6,8 @@ package edwards25519
 
 import (
 	"errors"
+
+	"github.com/ddkwork/golibrary/mylog"
 	"github.com/ddkwork/tls/internal/edwards25519/field"
 )
 
@@ -65,7 +67,8 @@ func (v *projP2) Zero() *projP2 {
 // identity is the point at infinity.
 var identity, _ = new(Point).SetBytes([]byte{
 	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+})
 
 // NewIdentityPoint returns a new Point set to the identity.
 func NewIdentityPoint() *Point {
@@ -78,7 +81,8 @@ var generator, _ = new(Point).SetBytes([]byte{
 	0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
 	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
 	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66})
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+})
 
 // NewGeneratorPoint returns a new Point set to the canonical generator.
 func NewGeneratorPoint() *Point {
@@ -150,10 +154,7 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	// Read more at https://hdevalence.ca/blog/2020-10-04-its-25519am,
 	// specifically the "Canonical A, R" section.
 
-	y, err := new(field.Element).SetBytes(x)
-	if err != nil {
-		return nil, errors.New("edwards25519: invalid point encoding length")
-	}
+	y := mylog.Check2(new(field.Element).SetBytes(x))
 
 	// -x² + y² = 1 + dx²y²
 	// x² + dx²y² = x²(dy² + 1) = y² - 1
@@ -227,7 +228,8 @@ var d, _ = new(field.Element).SetBytes([]byte{
 	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75,
 	0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
 	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c,
-	0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52})
+	0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52,
+})
 var d2 = new(field.Element).Add(d, d)
 
 func (v *projCached) FromP3(p *Point) *projCached {

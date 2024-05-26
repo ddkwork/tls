@@ -9,11 +9,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ddkwork/golibrary/mylog"
+
 	"github.com/ddkwork/tls/internal/edwards25519/field"
 )
 
-var B = NewGeneratorPoint()
-var I = NewIdentityPoint()
+var (
+	B = NewGeneratorPoint()
+	I = NewIdentityPoint()
+)
 
 func checkOnCurve(t *testing.T, points ...*Point) {
 	t.Helper()
@@ -94,17 +98,18 @@ func TestComparable(t *testing.T) {
 }
 
 func TestInvalidEncodings(t *testing.T) {
-	// An invalid point, that also happens to have y > p.
-	invalid := "efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
-	p := NewGeneratorPoint()
-	if out, err := p.SetBytes(decodeHex(invalid)); err == nil {
-		t.Error("expected error for invalid point")
-	} else if out != nil {
-		t.Error("SetBytes did not return nil on an invalid encoding")
-	} else if p.Equal(B) != 1 {
-		t.Error("the Point was modified while decoding an invalid encoding")
-	}
-	checkOnCurve(t, p)
+	mylog.Call(func() {
+		// An invalid point, that also happens to have y > p.
+		invalid := "efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+		p := NewGeneratorPoint()
+		out := mylog.Check2(p.SetBytes(decodeHex(invalid)))
+		if out != nil {
+			t.Error("SetBytes did not return nil on an invalid encoding")
+		} else if p.Equal(B) != 1 {
+			t.Error("the Point was modified while decoding an invalid encoding")
+		}
+		checkOnCurve(t, p)
+	})
 }
 
 func TestNonCanonicalPoints(t *testing.T) {
@@ -258,14 +263,10 @@ func TestNonCanonicalPoints(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p1, err := new(Point).SetBytes(decodeHex(tt.encoding))
-			if err != nil {
-				t.Fatalf("error decoding non-canonical point: %v", err)
-			}
-			p2, err := new(Point).SetBytes(decodeHex(tt.canonical))
-			if err != nil {
-				t.Fatalf("error decoding canonical point: %v", err)
-			}
+			p1 := mylog.Check2(new(Point).SetBytes(decodeHex(tt.encoding)))
+
+			p2 := mylog.Check2(new(Point).SetBytes(decodeHex(tt.canonical)))
+
 			if p1.Equal(p2) != 1 {
 				t.Errorf("equivalent points are not equal: %v, %v", p1, p2)
 			}
@@ -280,7 +281,6 @@ func TestNonCanonicalPoints(t *testing.T) {
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
-
 	if allocs := testing.AllocsPerRun(100, func() {
 		p := NewIdentityPoint()
 		p.Add(p, NewGeneratorPoint())
@@ -293,10 +293,8 @@ func TestAllocations(t *testing.T) {
 }
 
 func decodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
+	b := mylog.Check2(hex.DecodeString(s))
+
 	return b
 }
 
@@ -304,9 +302,7 @@ func BenchmarkEncodingDecoding(b *testing.B) {
 	p := new(Point).Set(dalekScalarBasepoint)
 	for i := 0; i < b.N; i++ {
 		buf := p.Bytes()
-		_, err := p.SetBytes(buf)
-		if err != nil {
-			b.Fatal(err)
-		}
+		mylog.Check2(p.SetBytes(buf))
+
 	}
 }

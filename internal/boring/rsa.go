@@ -8,6 +8,7 @@ package boring
 
 // #include "goboringcrypto.h"
 import "C"
+
 import (
 	"crypto"
 	"crypto/subtle"
@@ -16,6 +17,8 @@ import (
 	"runtime"
 	"strconv"
 	"unsafe"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv BigInt, err error) {
@@ -110,18 +113,9 @@ func (k *PrivateKeyRSA) withKey(f func(*C.GO_RSA) C.int) C.int {
 
 func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
-	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
+	init func(*C.GO_EVP_PKEY_CTX) C.int,
+) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
 	defer func() {
-		if err != nil {
-			if pkey != nil {
-				C._goboringcrypto_EVP_PKEY_free(pkey)
-				pkey = nil
-			}
-			if ctx != nil {
-				C._goboringcrypto_EVP_PKEY_CTX_free(ctx)
-				ctx = nil
-			}
-		}
 	}()
 
 	pkey = C._goboringcrypto_EVP_PKEY_new()
@@ -190,12 +184,10 @@ func cryptRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
 	init func(*C.GO_EVP_PKEY_CTX) C.int,
 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
-	in []byte) ([]byte, error) {
+	in []byte,
+) ([]byte, error) {
+	pkey, ctx := mylog.Check3(setupRSA(withKey, padding, h, mgfHash, label, saltLen, ch, init))
 
-	pkey, ctx, err := setupRSA(withKey, padding, h, mgfHash, label, saltLen, ch, init)
-	if err != nil {
-		return nil, err
-	}
 	defer C._goboringcrypto_EVP_PKEY_free(pkey)
 	defer C._goboringcrypto_EVP_PKEY_CTX_free(ctx)
 

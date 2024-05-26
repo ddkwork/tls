@@ -15,6 +15,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 var tests = []handshakeMessage{
@@ -41,10 +43,8 @@ var tests = []handshakeMessage{
 
 func mustMarshal(t *testing.T, msg handshakeMessage) []byte {
 	t.Helper()
-	b, err := msg.marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
+	b := mylog.Check2(msg.marshal())
+
 	return b
 }
 
@@ -113,9 +113,8 @@ func TestFuzz(t *testing.T) {
 
 func randomBytes(n int, rand *rand.Rand) []byte {
 	r := make([]byte, n)
-	if _, err := rand.Read(r); err != nil {
-		panic("rand.Read failed: " + err.Error())
-	}
+	mylog.Check2(rand.Read(r))
+
 	return r
 }
 
@@ -331,15 +330,11 @@ func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 var sessionTestCerts []*x509.Certificate
 
 func init() {
-	cert, err := x509.ParseCertificate(testRSACertificate)
-	if err != nil {
-		panic(err)
-	}
+	cert := mylog.Check2(x509.ParseCertificate(testRSACertificate))
+
 	sessionTestCerts = append(sessionTestCerts, cert)
-	cert, err = x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		panic(err)
-	}
+	cert = mylog.Check2(x509.ParseCertificate(testRSACertificateIssuer))
+
 	sessionTestCerts = append(sessionTestCerts, cert)
 }
 
@@ -402,10 +397,8 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 
 func (s *SessionState) marshal() ([]byte, error) { return s.Bytes() }
 func (s *SessionState) unmarshal(b []byte) bool {
-	ss, err := ParseSessionState(b)
-	if err != nil {
-		return false
-	}
+	ss := mylog.Check2(ParseSessionState(b))
+
 	*s = *ss
 	return true
 }
@@ -538,19 +531,15 @@ func TestRejectEmptySCT(t *testing.T) {
 }
 
 func TestRejectDuplicateExtensions(t *testing.T) {
-	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
-	if err != nil {
-		t.Fatalf("failed to decode test ClientHello: %s", err)
-	}
+	clientHelloBytes := mylog.Check2(hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f"))
+
 	var clientHelloCopy clientHelloMsg
 	if clientHelloCopy.unmarshal(clientHelloBytes) {
 		t.Error("Unmarshaled ClientHello with duplicate extensions")
 	}
 
-	serverHelloBytes, err := hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000")
-	if err != nil {
-		t.Fatalf("failed to decode test ServerHello: %s", err)
-	}
+	serverHelloBytes := mylog.Check2(hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000"))
+
 	var serverHelloCopy serverHelloMsg
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with duplicate extensions")

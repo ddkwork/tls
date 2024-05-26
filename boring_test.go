@@ -15,7 +15,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"internal/obscuretestdata"
 	"math/big"
 	"net"
 	"runtime"
@@ -23,6 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"internal/obscuretestdata"
+
+	"github.com/ddkwork/golibrary/mylog"
 	"github.com/ddkwork/tls/internal/boring/fipstls"
 )
 
@@ -236,7 +238,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 			t.Run("fipstls", func(t *testing.T) {
 				fipstls.Force()
 				defer fipstls.Abandon()
-				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+				clientErr := mylog.Check2(boringHandshake(t, testConfig, serverConfig))
 				if isBoringSignatureScheme(sigHash) {
 					if clientErr != nil {
 						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
@@ -270,10 +272,8 @@ func TestBoringClientHello(t *testing.T) {
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)
-	msg, err := srv.readHandshake(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg := mylog.Check2(srv.readHandshake(nil))
+
 	hello, ok := msg.(*clientHelloMsg)
 	if !ok {
 		t.Fatalf("unexpected message type %T", msg)
@@ -337,7 +337,7 @@ func TestBoringCertAlgs(t *testing.T) {
 		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
 		serverConfig.BuildNameToCertificate()
 
-		clientErr, _ := boringHandshake(t, clientConfig, serverConfig)
+		clientErr := mylog.Check2(boringHandshake(t, clientConfig, serverConfig))
 
 		if (clientErr == nil) == ok {
 			if ok {
@@ -468,18 +468,14 @@ const (
 )
 
 func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
-	k, err := rsa.GenerateKey(rand.Reader, size)
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := mylog.Check2(rsa.GenerateKey(rand.Reader, size))
+
 	return k
 }
 
 func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
-	k, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := mylog.Check2(ecdsa.GenerateKey(curve, rand.Reader))
+
 	return k
 }
 
@@ -539,14 +535,9 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 		t.Fatalf("invalid key %T", key)
 	}
 
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, pcert, pub, pkey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		t.Fatal(err)
-	}
+	der := mylog.Check2(x509.CreateCertificate(rand.Reader, tmpl, pcert, pub, pkey))
+
+	cert := mylog.Check2(x509.ParseCertificate(der))
 
 	fipsOK := mode&boringCertFIPSOK != 0
 	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
@@ -610,9 +601,6 @@ HvbaCd0PtLOPLKidvbWuCrjxBd/L5jeQOrMJ1SDX5DQ9J5Z8/5mkq4eqiWgwuoWc
 bBegiZqey6hcl9Um4OWQ3SKjISvCSR7wdrAdv0S21ivYkOCZZQ3HBQS6YY5RlYvE
 9I4kIZF8XKkit7ekfhdmZCfpIvnJHY6JAIOufQ2+92qUkFKmm5RWXD==
 -----RAQ EFN CEVINGR XRL-----`)))
-	var err error
-	testRSA2048PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
+
+	testRSA2048PrivateKey = mylog.Check2(x509.ParsePKCS1PrivateKey(block.Bytes))
 }

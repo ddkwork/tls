@@ -7,6 +7,8 @@ package edwards25519
 import (
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 var (
@@ -78,10 +80,7 @@ func TestScalarMultDistributesOverAdd(t *testing.T) {
 		checkOnCurve(t, &p, &q, &r, &check)
 		return check.Equal(&r) == 1
 	}
-
-	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig(32)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(scalarMultDistributesOverAdd, quickCheckConfig(32)))
 }
 
 func TestScalarMultNonIdentityPoint(t *testing.T) {
@@ -100,10 +99,7 @@ func TestScalarMultNonIdentityPoint(t *testing.T) {
 
 		return p.Equal(&q) == 1
 	}
-
-	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig(32)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(scalarMultNonIdentityPoint, quickCheckConfig(32)))
 }
 
 func TestBasepointTableGeneration(t *testing.T) {
@@ -144,10 +140,7 @@ func TestScalarMultMatchesBaseMult(t *testing.T) {
 		checkOnCurve(t, &p, &q)
 		return p.Equal(&q) == 1
 	}
-
-	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(scalarMultMatchesBaseMult, quickCheckConfig(32)))
 }
 
 func TestBasepointNafTableGeneration(t *testing.T) {
@@ -172,10 +165,7 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
 		checkOnCurve(t, &p, &check, &q1, &q2)
 		return p.Equal(&check) == 1
 	}
-
-	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig(32)))
 }
 
 // Benchmarks.

@@ -25,6 +25,8 @@ import (
 	"net"
 	"os"
 	"strings"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // Server returns a new TLS server side connection
@@ -63,10 +65,8 @@ type listener struct {
 // Accept waits for and returns the next incoming TLS connection.
 // The returned connection is of type *Conn.
 func (l *listener) Accept() (net.Conn, error) {
-	c, err := l.Listener.Accept()
-	if err != nil {
-		return nil, err
-	}
+	c := mylog.Check2(l.Listener.Accept())
+
 	return Server(c, l.config), nil
 }
 
@@ -90,10 +90,8 @@ func Listen(network, laddr string, config *Config) (net.Listener, error) {
 		config.GetCertificate == nil && config.GetConfigForClient == nil {
 		return nil, errors.New("tls: neither Certificates, GetCertificate, nor GetConfigForClient set in Config")
 	}
-	l, err := net.Listen(network, laddr)
-	if err != nil {
-		return nil, err
-	}
+	l := mylog.Check2(net.Listen(network, laddr))
+
 	return NewListener(l, config), nil
 }
 
@@ -130,10 +128,7 @@ func dial(ctx context.Context, netDialer *net.Dialer, network, addr string, conf
 		defer cancel()
 	}
 
-	rawConn, err := netDialer.DialContext(ctx, network, addr)
-	if err != nil {
-		return nil, err
-	}
+	rawConn := mylog.Check2(netDialer.DialContext(ctx, network, addr))
 
 	colonPos := strings.LastIndex(addr, ":")
 	if colonPos == -1 {
@@ -154,10 +149,8 @@ func dial(ctx context.Context, netDialer *net.Dialer, network, addr string, conf
 	}
 
 	conn := Client(rawConn, config)
-	if err := conn.HandshakeContext(ctx); err != nil {
-		rawConn.Close()
-		return nil, err
-	}
+	mylog.Check(conn.HandshakeContext(ctx))
+
 	return conn, nil
 }
 
@@ -214,11 +207,10 @@ func (d *Dialer) netDialer() *net.Dialer {
 //
 // The returned [Conn], if any, will always be of type *[Conn].
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	c, err := dial(ctx, d.netDialer(), network, addr, d.Config)
-	if err != nil {
-		// Don't return c (a typed nil) in an interface.
-		return nil, err
-	}
+	c := mylog.Check2(dial(ctx, d.netDialer(), network, addr, d.Config))
+
+	// Don't return c (a typed nil) in an interface.
+
 	return c, nil
 }
 
@@ -228,14 +220,10 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
-	certPEMBlock, err := os.ReadFile(certFile)
-	if err != nil {
-		return Certificate{}, err
-	}
-	keyPEMBlock, err := os.ReadFile(keyFile)
-	if err != nil {
-		return Certificate{}, err
-	}
+	certPEMBlock := mylog.Check2(os.ReadFile(certFile))
+
+	keyPEMBlock := mylog.Check2(os.ReadFile(keyFile))
+
 	return X509KeyPair(certPEMBlock, keyPEMBlock)
 }
 
@@ -291,15 +279,9 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 
 	// We don't need to parse the public key for TLS, but we so do anyway
 	// to check that it looks sane and matches the private key.
-	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return fail(err)
-	}
+	x509Cert := mylog.Check2(x509.ParseCertificate(cert.Certificate[0]))
 
-	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
-	if err != nil {
-		return fail(err)
-	}
+	cert.PrivateKey = mylog.Check2(parsePrivateKey(keyDERBlock.Bytes))
 
 	switch pub := x509Cert.PublicKey.(type) {
 	case *rsa.PublicKey:
@@ -337,10 +319,10 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 // PKCS #1 private keys by default, while OpenSSL 1.0.0 generates PKCS #8 keys.
 // OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
 func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
+	if key := mylog.Check2(x509.ParsePKCS1PrivateKey(der)); key != nil {
 		return key, nil
 	}
-	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
+	if key := mylog.Check2(x509.ParsePKCS8PrivateKey(der)); key != nil {
 		switch key := key.(type) {
 		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
 			return key, nil
@@ -348,7 +330,7 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
 		}
 	}
-	if key, err := x509.ParseECPrivateKey(der); err == nil {
+	if key := mylog.Check2(x509.ParseECPrivateKey(der)); key != nil {
 		return key, nil
 	}
 

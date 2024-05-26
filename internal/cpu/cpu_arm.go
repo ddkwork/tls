@@ -9,9 +9,11 @@ const CacheLinePadSize = 32
 // arm doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
 // These are initialized by archauxv() and should not be changed after they are
 // initialized.
-var HWCap uint
-var HWCap2 uint
-var Platform string
+var (
+	HWCap    uint
+	HWCap2   uint
+	Platform string
+)
 
 // HWCAP/HWCAP2 bits. These are exposed by Linux and FreeBSD.
 const (

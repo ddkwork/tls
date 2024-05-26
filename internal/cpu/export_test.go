@@ -4,6 +4,4 @@
 
 package cpu
 
-var (
-	Options = options
-)
+var Options = options

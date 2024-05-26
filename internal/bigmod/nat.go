@@ -9,6 +9,8 @@ import (
 	"errors"
 	"math/big"
 	"math/bits"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 const (
@@ -25,8 +27,10 @@ type choice uint
 
 func not(c choice) choice { return 1 ^ c }
 
-const yes = choice(1)
-const no = choice(0)
+const (
+	yes = choice(1)
+	no  = choice(0)
+)
 
 // ctMask is all 1s if on is yes, and all 0s otherwise.
 func ctMask(on choice) uint { return -uint(on) }
@@ -61,8 +65,10 @@ type Nat struct {
 // preallocTarget is the size in bits of the numbers used to implement the most
 // common and most performant RSA key size. It's also enough to cover some of
 // the operations of key sizes up to 4096.
-const preallocTarget = 2048
-const preallocLimbs = (preallocTarget + _W - 1) / _W
+const (
+	preallocTarget = 2048
+	preallocLimbs  = (preallocTarget + _W - 1) / _W
+)
 
 // NewNat returns a new nat with a size of zero, just like new(Nat), but with
 // the preallocated capacity to hold a number of up to preallocTarget bits.
@@ -152,9 +158,8 @@ func (x *Nat) Bytes(m *Modulus) []byte {
 //
 // The output will be resized to the size of m and overwritten.
 func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
-	if err := x.setBytes(b, m); err != nil {
-		return nil, err
-	}
+	mylog.Check(x.setBytes(b, m))
+
 	if x.cmpGeq(m.nat) == yes {
 		return nil, errors.New("input overflows the modulus")
 	}
@@ -167,9 +172,8 @@ func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
 //
 // The output will be resized to the size of m and overwritten.
 func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
-	if err := x.setBytes(b, m); err != nil {
-		return nil, err
-	}
+	mylog.Check(x.setBytes(b, m))
+
 	leading := _W - bitLen(x.limbs[len(x.limbs)-1])
 	if leading < m.leading {
 		return nil, errors.New("input overflows the modulus size")

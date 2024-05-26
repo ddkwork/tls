@@ -8,10 +8,10 @@ import (
 	"crypto/ecdh"
 	"crypto/hmac"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 
+	"github.com/ddkwork/golibrary/mylog"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/hkdf"
 )
@@ -42,25 +42,24 @@ func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []by
 	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddBytes(context)
 	})
-	hkdfLabelBytes, err := hkdfLabel.Bytes()
-	if err != nil {
-		// Rather than calling BytesOrPanic, we explicitly handle this error, in
-		// order to provide a reasonable error message. It should be basically
-		// impossible for this to panic, and routing errors back through the
-		// tree rooted in this function is quite painful. The labels are fixed
-		// size, and the context is either a fixed-length computed hash, or
-		// parsed from a field which has the same length limitation. As such, an
-		// error here is likely to only be caused during development.
-		//
-		// NOTE: another reasonable approach here might be to return a
-		// randomized slice if we encounter an error, which would break the
-		// connection, but avoid panicking. This would perhaps be safer but
-		// significantly more confusing to users.
-		panic(fmt.Errorf("failed to construct HKDF label: %s", err))
-	}
+	hkdfLabelBytes := mylog.Check2(hkdfLabel.Bytes())
+
+	// Rather than calling BytesOrPanic, we explicitly handle this error, in
+	// order to provide a reasonable error message. It should be basically
+	// impossible for this to panic, and routing errors back through the
+	// tree rooted in this function is quite painful. The labels are fixed
+	// size, and the context is either a fixed-length computed hash, or
+	// parsed from a field which has the same length limitation. As such, an
+	// error here is likely to only be caused during development.
+	//
+	// NOTE: another reasonable approach here might be to return a
+	// randomized slice if we encounter an error, which would break the
+	// connection, but avoid panicking. This would perhaps be safer but
+	// significantly more confusing to users.
+
 	out := make([]byte, length)
-	n, err := hkdf.Expand(c.hash.New, secret, hkdfLabelBytes).Read(out)
-	if err != nil || n != length {
+	n := mylog.Check2(hkdf.Expand(c.hash.New, secret, hkdfLabelBytes).Read(out))
+	if n != length {
 		panic("tls: HKDF-Expand-Label invocation failed unexpectedly")
 	}
 	return out

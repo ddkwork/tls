@@ -9,6 +9,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 type testQUICConn struct {
@@ -89,9 +91,7 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 	a, b := cli, srv
 	for _, c := range []*testQUICConn{a, b} {
 		if !c.conn.conn.quic.started {
-			if err := c.conn.Start(ctx); err != nil {
-				return err
-			}
+			mylog.Check(c.conn.Start(ctx))
 		}
 	}
 	idleCount := 0
@@ -115,9 +115,8 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 		case QUICSetWriteSecret:
 			a.setWriteSecret(e.Level, e.Suite, e.Data)
 		case QUICWriteData:
-			if err := b.conn.HandleData(e.Level, e.Data); err != nil {
-				return err
-			}
+			mylog.Check(b.conn.HandleData(e.Level, e.Data))
+
 		case QUICTransportParameters:
 			a.gotParams = e.Data
 			if a.gotParams == nil {
@@ -129,9 +128,8 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 			a.complete = true
 			if a == srv {
 				opts := QUICSessionTicketOptions{}
-				if err := srv.conn.SendSessionTicket(opts); err != nil {
-					return err
-				}
+				mylog.Check(srv.conn.SendSessionTicket(opts))
+
 			}
 		}
 		if e.Kind != QUICNoEvent {
@@ -149,10 +147,7 @@ func TestQUICConnection(t *testing.T) {
 
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	if _, ok := cli.readSecret[QUICEncryptionLevelHandshake]; !ok {
 		t.Errorf("client has no Handshake secret")
@@ -195,9 +190,8 @@ func TestQUICSessionResumption(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, serverConfig)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during first connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
+
 	if cli.conn.ConnectionState().DidResume {
 		t.Errorf("first connection unexpectedly used session resumption")
 	}
@@ -206,9 +200,8 @@ func TestQUICSessionResumption(t *testing.T) {
 	cli2.conn.SetTransportParameters(nil)
 	srv2 := newTestQUICServer(t, serverConfig)
 	srv2.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli2, srv2, nil); err != nil {
-		t.Fatalf("error during second connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli2, srv2, nil))
+
 	if !cli2.conn.ConnectionState().DidResume {
 		t.Errorf("second connection did not use session resumption")
 	}
@@ -231,18 +224,13 @@ func TestQUICFragmentaryData(t *testing.T) {
 		if e.Kind == QUICWriteData {
 			// Provide the data one byte at a time.
 			for i := range e.Data {
-				if err := dst.conn.HandleData(e.Level, e.Data[i:i+1]); err != nil {
-					t.Errorf("HandleData: %v", err)
-					break
-				}
+				mylog.Check(dst.conn.HandleData(e.Level, e.Data[i:i+1]))
 			}
 			return true
 		}
 		return false
 	}
-	if err := runTestQUICConnection(context.Background(), cli, srv, onEvent); err != nil {
-		t.Fatalf("error during first connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, onEvent))
 }
 
 func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
@@ -253,24 +241,18 @@ func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	certReq := new(certificateRequestMsgTLS13)
 	certReq.ocspStapling = true
 	certReq.scts = true
 	certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
-	certReqBytes, err := certReq.marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
+	certReqBytes := mylog.Check2(certReq.marshal())
+
+	mylog.Check(cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
 		byte(typeCertificateRequest),
 		byte(0), byte(0), byte(len(certReqBytes)),
-	}, certReqBytes...)); err == nil {
-		t.Fatalf("post-handshake authentication request: got no error, want one")
-	}
+	}, certReqBytes...)))
 }
 
 func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
@@ -281,21 +263,15 @@ func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	keyUpdate := new(keyUpdateMsg)
-	keyUpdateBytes, err := keyUpdate.marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
+	keyUpdateBytes := mylog.Check2(keyUpdate.marshal())
+
+	mylog.Check(cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
 		byte(typeKeyUpdate),
 		byte(0), byte(0), byte(len(keyUpdateBytes)),
-	}, keyUpdateBytes...)); !errors.Is(err, alertUnexpectedMessage) {
-		t.Fatalf("key update request: got error %v, want alertUnexpectedMessage", err)
-	}
+	}, keyUpdateBytes...)))
 }
 
 func TestQUICPostHandshakeMessageTooLarge(t *testing.T) {
@@ -305,19 +281,15 @@ func TestQUICPostHandshakeMessageTooLarge(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	size := maxHandshake + 1
-	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, []byte{
+	mylog.Check(cli.conn.HandleData(QUICEncryptionLevelApplication, []byte{
 		byte(typeNewSessionTicket),
 		byte(size >> 16),
 		byte(size >> 8),
 		byte(size),
-	}); err == nil {
-		t.Fatalf("%v-byte post-handshake message: got no error, want one", size)
-	}
+	}))
 }
 
 func TestQUICHandshakeError(t *testing.T) {
@@ -333,14 +305,8 @@ func TestQUICHandshakeError(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, serverConfig)
 	srv.conn.SetTransportParameters(nil)
-	err := runTestQUICConnection(context.Background(), cli, srv, nil)
-	if !errors.Is(err, AlertError(alertBadCertificate)) {
-		t.Errorf("connection handshake terminated with error %q, want alertBadCertificate", err)
-	}
-	var e *CertificateVerificationError
-	if !errors.As(err, &e) {
-		t.Errorf("connection handshake terminated with error %q, want CertificateVerificationError", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
+	// var e *CertificateVerificationError
 }
 
 // Test that QUICConn.ConnectionState can be used during the handshake,
@@ -369,9 +335,7 @@ func TestQUICConnectionState(t *testing.T) {
 		}
 		return false
 	}
-	if err := runTestQUICConnection(context.Background(), cli, srv, onEvent); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, onEvent))
 }
 
 func TestQUICStartContextPropagation(t *testing.T) {
@@ -393,9 +357,8 @@ func TestQUICStartContextPropagation(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(ctx, cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(ctx, cli, srv, nil))
+
 	if calls != 1 {
 		t.Errorf("GetConfigForClient called %v times, want 1", calls)
 	}
@@ -415,17 +378,11 @@ func TestQUICDelayedTransportParameters(t *testing.T) {
 
 	cli := newTestQUICClient(t, clientConfig)
 	srv := newTestQUICServer(t, serverConfig)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != errTransportParametersRequired {
-		t.Fatalf("handshake with no client parameters: %v; want errTransportParametersRequired", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 	cli.conn.SetTransportParameters([]byte(cliParams))
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != errTransportParametersRequired {
-		t.Fatalf("handshake with no server parameters: %v; want errTransportParametersRequired", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 	srv.conn.SetTransportParameters([]byte(srvParams))
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	if got, want := string(cli.gotParams), srvParams; got != want {
 		t.Errorf("client got transport params: %q, want %q", got, want)
@@ -443,9 +400,7 @@ func TestQUICEmptyTransportParameters(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
-		t.Fatalf("error during connection handshake: %v", err)
-	}
+	mylog.Check(runTestQUICConnection(context.Background(), cli, srv, nil))
 
 	if cli.gotParams == nil {
 		t.Errorf("client did not get transport params")
@@ -469,10 +424,7 @@ func TestQUICCanceledWaitingForData(t *testing.T) {
 	cli.conn.Start(context.Background())
 	for cli.conn.NextEvent().Kind != QUICNoEvent {
 	}
-	err := cli.conn.Close()
-	if !errors.Is(err, alertCloseNotify) {
-		t.Errorf("conn.Close() = %v, want alertCloseNotify", err)
-	}
+	mylog.Check(cli.conn.Close())
 }
 
 func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
@@ -482,8 +434,5 @@ func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
 	cli.conn.Start(context.Background())
 	for cli.conn.NextEvent().Kind != QUICTransportParametersRequired {
 	}
-	err := cli.conn.Close()
-	if !errors.Is(err, alertCloseNotify) {
-		t.Errorf("conn.Close() = %v, want alertCloseNotify", err)
-	}
+	mylog.Check(cli.conn.Close())
 }

@@ -7,6 +7,8 @@ package field
 import (
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func checkAliasingOneArg(f func(v, x *Element) *Element) func(v, x Element) bool {
@@ -126,15 +128,11 @@ func TestAliasing(t *testing.T) {
 			},
 		},
 	} {
-		var err error
 		switch {
 		case tt.oneArgF != nil:
-			err = quick.Check(checkAliasingOneArg(tt.oneArgF), quickCheckConfig(256))
+			mylog.Check(quick.Check(checkAliasingOneArg(tt.oneArgF), quickCheckConfig(256)))
 		case tt.twoArgsF != nil:
-			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), quickCheckConfig(256))
-		}
-		if err != nil {
-			t.Errorf("%v: %v", tt.name, err)
+			mylog.Check(quick.Check(checkAliasingTwoArgs(tt.twoArgsF), quickCheckConfig(256)))
 		}
 	}
 }

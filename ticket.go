@@ -14,6 +14,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/ddkwork/golibrary/mylog"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -221,10 +222,8 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		return nil, errors.New("tls: invalid session encoding")
 	}
 	for _, cert := range cert.Certificate {
-		c, err := globalCertCache.newCert(cert)
-		if err != nil {
-			return nil, err
-		}
+		c := mylog.Check2(globalCertCache.newCert(cert))
+
 		ss.activeCertHandles = append(ss.activeCertHandles, c)
 		ss.peerCertificates = append(ss.peerCertificates, c.cert)
 	}
@@ -249,10 +248,8 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 			if !readUint24LengthPrefixed(&certList, &cert) {
 				return nil, errors.New("tls: invalid session encoding")
 			}
-			c, err := globalCertCache.newCert(cert)
-			if err != nil {
-				return nil, err
-			}
+			c := mylog.Check2(globalCertCache.newCert(cert))
+
 			ss.activeCertHandles = append(ss.activeCertHandles, c)
 			chain = append(chain, c.cert)
 		}
@@ -309,10 +306,8 @@ func (c *Conn) sessionState() (*SessionState, error) {
 // session ticket keys. It can be used as a [Config.WrapSession] implementation.
 func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
 	ticketKeys := c.ticketKeys(nil)
-	stateBytes, err := ss.Bytes()
-	if err != nil {
-		return nil, err
-	}
+	stateBytes := mylog.Check2(ss.Bytes())
+
 	return c.encryptTicket(stateBytes, ticketKeys)
 }
 
@@ -326,15 +321,11 @@ func (c *Config) encryptTicket(state []byte, ticketKeys []ticketKey) ([]byte, er
 	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
 	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
+	mylog.Check2(io.ReadFull(c.rand(), iv))
 
-	if _, err := io.ReadFull(c.rand(), iv); err != nil {
-		return nil, err
-	}
 	key := ticketKeys[0]
-	block, err := aes.NewCipher(key.aesKey[:])
-	if err != nil {
-		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
-	}
+	block := mylog.Check2(aes.NewCipher(key.aesKey[:]))
+
 	cipher.NewCTR(block, iv).XORKeyStream(ciphertext, state)
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
@@ -354,10 +345,10 @@ func (c *Config) DecryptTicket(identity []byte, cs ConnectionState) (*SessionSta
 	if stateBytes == nil {
 		return nil, nil
 	}
-	s, err := ParseSessionState(stateBytes)
-	if err != nil {
-		return nil, nil // drop unparsable tickets on the floor
-	}
+	s := mylog.Check2(ParseSessionState(stateBytes))
+
+	// drop unparsable tickets on the floor
+
 	return s, nil
 }
 
@@ -380,10 +371,8 @@ func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte 
 			continue
 		}
 
-		block, err := aes.NewCipher(key.aesKey[:])
-		if err != nil {
-			return nil
-		}
+		block := mylog.Check2(aes.NewCipher(key.aesKey[:]))
+
 		plaintext := make([]byte, len(ciphertext))
 		cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
 

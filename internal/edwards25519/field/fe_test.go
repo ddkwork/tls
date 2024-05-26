@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func (v Element) String() string {
@@ -119,10 +121,7 @@ func TestMultiplyDistributesOverAdd(t *testing.T) {
 
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
-
-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)))
 }
 
 func TestMul64to128(t *testing.T) {
@@ -162,9 +161,7 @@ func TestSetBytesRoundTrip(t *testing.T) {
 
 		return bytes.Equal(in[:], fe.Bytes()) && isInBounds(&fe)
 	}
-	if err := quick.Check(f1, nil); err != nil {
-		t.Errorf("failed bytes->FE->bytes round-trip: %v", err)
-	}
+	mylog.Check(quick.Check(f1, nil))
 
 	f2 := func(fe, r Element) bool {
 		r.SetBytes(fe.Bytes())
@@ -176,16 +173,14 @@ func TestSetBytesRoundTrip(t *testing.T) {
 		r.reduce()
 		return fe == r
 	}
-	if err := quick.Check(f2, nil); err != nil {
-		t.Errorf("failed FE->bytes->FE round-trip: %v", err)
-	}
+	mylog.Check(quick.Check(f2, nil))
 
 	// Check some fixed vectors from dalek
 	type feRTTest struct {
 		fe Element
 		b  []byte
 	}
-	var tests = []feRTTest{
+	tests := []feRTTest{
 		{
 			fe: Element{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676},
 			b:  []byte{74, 209, 69, 197, 70, 70, 161, 222, 56, 226, 229, 19, 112, 60, 25, 92, 187, 74, 222, 56, 50, 153, 51, 233, 40, 74, 57, 6, 160, 185, 213, 31},
@@ -229,9 +224,7 @@ func TestBytesBigEquivalence(t *testing.T) {
 
 		return bytes.Equal(fe.Bytes(), buf) && isInBounds(&fe) && isInBounds(&fe1)
 	}
-	if err := quick.Check(f1, nil); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(f1, nil))
 }
 
 // fromBig sets v = n, and returns v. The bit length of n must not exceed 256.
@@ -313,11 +306,8 @@ func TestConsistency(t *testing.T) {
 	}
 
 	var bytes [32]byte
+	mylog.Check2(io.ReadFull(rand.Reader, bytes[:]))
 
-	_, err := io.ReadFull(rand.Reader, bytes[:])
-	if err != nil {
-		t.Fatal(err)
-	}
 	x.SetBytes(bytes[:])
 
 	x2.Multiply(&x, &x)
@@ -357,13 +347,8 @@ func TestInvert(t *testing.T) {
 	}
 
 	var bytes [32]byte
-
-	_, err := io.ReadFull(rand.Reader, bytes[:])
-	if err != nil {
-		t.Fatal(err)
-	}
+	mylog.Check2(io.ReadFull(rand.Reader, bytes[:]))
 	x.SetBytes(bytes[:])
-
 	xinv.Invert(&x)
 	r.Multiply(&x, &xinv)
 	r.reduce()
@@ -424,10 +409,7 @@ func TestMult32(t *testing.T) {
 
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
-
-	if err := quick.Check(mult32EquivalentToMul, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(mult32EquivalentToMul, quickCheckConfig(1024)))
 }
 
 func TestSqrtRatio(t *testing.T) {
@@ -437,7 +419,7 @@ func TestSqrtRatio(t *testing.T) {
 		wasSquare int
 		r         string
 	}
-	var tests = []test{
+	tests := []test{
 		// If u is 0, the function is defined to return (0, TRUE), even if v
 		// is zero. Note that where used in this package, the denominator v
 		// is never zero.
@@ -503,10 +485,7 @@ func TestCarryPropagate(t *testing.T) {
 
 		return *t1 == *t2 && isInBounds(t2)
 	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(asmLikeGeneric, quickCheckConfig(1024)))
 
 	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
 		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
@@ -527,10 +506,7 @@ func TestFeSquare(t *testing.T) {
 
 		return t1 == t2 && isInBounds(&t2)
 	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(asmLikeGeneric, quickCheckConfig(1024)))
 }
 
 func TestFeMul(t *testing.T) {
@@ -551,16 +527,11 @@ func TestFeMul(t *testing.T) {
 		return a1 == a2 && isInBounds(&a2) &&
 			b1 == b2 && isInBounds(&b2)
 	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(asmLikeGeneric, quickCheckConfig(1024)))
 }
 
 func decodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
+	b := mylog.Check2(hex.DecodeString(s))
+
 	return b
 }

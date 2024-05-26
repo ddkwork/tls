@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 type cacheEntry struct {
@@ -82,10 +84,7 @@ func (cc *certCache) newCert(der []byte) (*activeCert, error) {
 		return cc.active(entry.(*cacheEntry)), nil
 	}
 
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		return nil, err
-	}
+	cert := mylog.Check2(x509.ParseCertificate(der))
 
 	entry := &cacheEntry{cert: cert}
 	if entry, loaded := cc.LoadOrStore(string(der), entry); loaded {

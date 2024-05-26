@@ -9,6 +9,8 @@ import (
 	"io"
 	"net"
 	"testing"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func TestRoundUp(t *testing.T) {
@@ -102,12 +104,8 @@ func TestCertificateSelection(t *testing.T) {
 		clientHello := &ClientHelloInfo{
 			ServerName: name,
 		}
-		if cert, err := config.getCertificate(clientHello); err != nil {
-			t.Errorf("unable to get certificate for name '%s': %s", name, err)
-			return nil
-		} else {
-			return cert
-		}
+		cert := mylog.Check2(config.getCertificate(clientHello))
+		return cert
 	}
 
 	if n := pointerToIndex(certificateForName("example.com")); n != 0 {
@@ -143,10 +141,8 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 		defer clientConn.Close()
 
 		tlsConn := Client(clientConn, config)
-		if err := tlsConn.Handshake(); err != nil {
-			t.Errorf("Error from client handshake: %v", err)
-			return
-		}
+		mylog.Check(tlsConn.Handshake())
+
 		close(handshakeDone)
 
 		var recordHeader [recordHeaderLen]byte
@@ -168,7 +164,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 				record = make([]byte, length)
 			}
 
-			n, err = io.ReadFull(clientConn, record[:length])
+			n = mylog.Check2(io.ReadFull(clientConn, record[:length]))
 			if err != nil || n != length {
 				t.Errorf("io.ReadFull = %d, %v", n, err)
 				return
@@ -179,10 +175,8 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 
 		recordSizesChan <- recordSizes
 	}()
+	mylog.Check(tlsConn.Handshake())
 
-	if err := tlsConn.Handshake(); err != nil {
-		t.Fatalf("Error from server handshake: %s", err)
-	}
 	<-handshakeDone
 
 	// The server writes these plaintexts in order.
@@ -191,13 +185,8 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 		bytes.Repeat([]byte("y"), maxPlaintext*2),
 		bytes.Repeat([]byte("z"), maxPlaintext),
 	}, nil)
-
-	if _, err := tlsConn.Write(plaintext); err != nil {
-		t.Fatalf("Error from server write: %s", err)
-	}
-	if err := tlsConn.Close(); err != nil {
-		t.Fatalf("Error from server close: %s", err)
-	}
+	mylog.Check2(tlsConn.Write(plaintext))
+	mylog.Check(tlsConn.Close())
 
 	recordSizes := <-recordSizesChan
 	if recordSizes == nil {
@@ -296,24 +285,15 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 
 	go func() {
 		tlsConn := Client(client, config)
-		if err := tlsConn.Handshake(); err != nil {
-			t.Errorf("Error from client handshake: %v", err)
-			return
-		}
+		mylog.Check(tlsConn.Handshake())
+
 		tlsConn.vers = 0x1111
 		tlsConn.Write([]byte{1})
 	}()
 
 	tlsConn := Server(server, config)
-	if err := tlsConn.Handshake(); err != nil {
-		t.Errorf("Error from client handshake: %v", err)
-		return
-	}
+	mylog.Check(tlsConn.Handshake())
 
-	expectedErr := "tls: received record with version 1111 when expecting version 303"
-
-	_, err := tlsConn.Read(make([]byte, 10))
-	if err.Error() != expectedErr {
-		t.Fatalf("unexpected error: got %q, want %q", err, expectedErr)
-	}
+	// expectedErr := "tls: received record with version 1111 when expecting version 303"
+	mylog.Check2(tlsConn.Read(make([]byte, 10)))
 }

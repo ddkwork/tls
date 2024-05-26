@@ -56,6 +56,7 @@ _goboringcrypto_gosha512(void *p, size_t n, void *out)
 
 */
 import "C"
+
 import (
 	"errors"
 	"hash"

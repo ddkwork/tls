@@ -15,6 +15,8 @@ import (
 	"hash"
 	"io"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // maxClientPSKIdentities is the number of client PSK identities the server will
@@ -48,39 +50,25 @@ func (hs *serverHandshakeStateTLS13) handshake() error {
 	if needFIPS() {
 		return errors.New("tls: internal error: TLS 1.3 reached in FIPS mode")
 	}
+	mylog.Check(
 
-	// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
-	if err := hs.processClientHello(); err != nil {
-		return err
-	}
-	if err := hs.checkForResumption(); err != nil {
-		return err
-	}
-	if err := hs.pickCertificate(); err != nil {
-		return err
-	}
+		// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
+		hs.processClientHello())
+	mylog.Check(hs.checkForResumption())
+	mylog.Check(hs.pickCertificate())
+
 	c.buffering = true
-	if err := hs.sendServerParameters(); err != nil {
-		return err
-	}
-	if err := hs.sendServerCertificate(); err != nil {
-		return err
-	}
-	if err := hs.sendServerFinished(); err != nil {
-		return err
-	}
-	// Note that at this point we could start sending application data without
-	// waiting for the client's second flight, but the application might not
-	// expect the lack of replay protection of the ClientHello parameters.
-	if _, err := c.flush(); err != nil {
-		return err
-	}
-	if err := hs.readClientCertificate(); err != nil {
-		return err
-	}
-	if err := hs.readClientFinished(); err != nil {
-		return err
-	}
+	mylog.Check(hs.sendServerParameters())
+	mylog.Check(hs.sendServerCertificate())
+	mylog.Check(hs.sendServerFinished())
+	mylog.Check2(
+
+		// Note that at this point we could start sending application data without
+		// waiting for the client's second flight, but the application might not
+		// expect the lack of replay protection of the ClientHello parameters.
+		c.flush())
+	mylog.Check(hs.readClientCertificate())
+	mylog.Check(hs.readClientFinished())
 
 	c.isHandshakeComplete.Store(true)
 
@@ -130,10 +118,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	}
 
 	hs.hello.random = make([]byte, 32)
-	if _, err := io.ReadFull(c.config.rand(), hs.hello.random); err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
+	mylog.Check2(io.ReadFull(c.config.rand(), hs.hello.random))
 
 	if len(hs.clientHello.secureRenegotiation) != 0 {
 		c.sendAlert(alertHandshakeFailure)
@@ -205,9 +190,8 @@ GroupSelection:
 		return errors.New("tls: no ECDHE curve supported by both client and server")
 	}
 	if clientKeyShare == nil {
-		if err := hs.doHelloRetryRequest(selectedGroup); err != nil {
-			return err
-		}
+		mylog.Check(hs.doHelloRetryRequest(selectedGroup))
+
 		clientKeyShare = &hs.clientHello.keyShares[0]
 	}
 
@@ -215,28 +199,15 @@ GroupSelection:
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: CurvePreferences includes unsupported curve")
 	}
-	key, err := generateECDHEKey(c.config.rand(), selectedGroup)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
-	peerKey, err := key.Curve().NewPublicKey(clientKeyShare.data)
-	if err != nil {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: invalid client key share")
-	}
-	hs.sharedKey, err = key.ECDH(peerKey)
-	if err != nil {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: invalid client key share")
-	}
+	key := mylog.Check2(generateECDHEKey(c.config.rand(), selectedGroup))
 
-	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
-	if err != nil {
-		c.sendAlert(alertNoApplicationProtocol)
-		return err
-	}
+	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
+	peerKey := mylog.Check2(key.Curve().NewPublicKey(clientKeyShare.data))
+
+	hs.sharedKey = mylog.Check2(key.ECDH(peerKey))
+
+	selectedProto := mylog.Check2(negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil))
+
 	c.clientProtocol = selectedProto
 
 	if c.quic != nil {
@@ -297,11 +268,9 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 
 		var sessionState *SessionState
 		if c.config.UnwrapSession != nil {
-			var err error
-			sessionState, err = c.config.UnwrapSession(identity.label, c.connectionStateLocked())
-			if err != nil {
-				return err
-			}
+
+			sessionState = mylog.Check2(c.config.UnwrapSession(identity.label, c.connectionStateLocked()))
+
 			if sessionState == nil {
 				continue
 			}
@@ -310,11 +279,9 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			if plaintext == nil {
 				continue
 			}
-			var err error
-			sessionState, err = ParseSessionState(plaintext)
-			if err != nil {
-				continue
-			}
+
+			sessionState = mylog.Check2(ParseSessionState(plaintext))
+
 		}
 
 		if sessionState.version != VersionTLS13 {
@@ -358,11 +325,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			c.sendAlert(alertInternalError)
 			return errors.New("tls: internal error: failed to clone hash")
 		}
-		clientHelloBytes, err := hs.clientHello.marshalWithoutBinders()
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
-		}
+		clientHelloBytes := mylog.Check2(hs.clientHello.marshalWithoutBinders())
+
 		transcript.Write(clientHelloBytes)
 		pskBinder := hs.suite.finishedHash(binderKey, transcript)
 		if !hmac.Equal(hs.clientHello.pskBinders[i], pskBinder) {
@@ -376,9 +340,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			hs.earlyData = true
 
 			transcript := hs.suite.hash.New()
-			if err := transcriptMsg(hs.clientHello, transcript); err != nil {
-				return err
-			}
+			mylog.Check(transcriptMsg(hs.clientHello, transcript))
+
 			earlyTrafficSecret := hs.suite.deriveSecret(hs.earlySecret, clientEarlyTrafficLabel, transcript)
 			c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret)
 		}
@@ -411,18 +374,15 @@ func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
 	if !ok {
 		return nil
 	}
-	state, err := marshaler.MarshalBinary()
-	if err != nil {
-		return nil
-	}
+	state := mylog.Check2(marshaler.MarshalBinary())
+
 	out := h.New()
 	unmarshaler, ok := out.(binaryMarshaler)
 	if !ok {
 		return nil
 	}
-	if err := unmarshaler.UnmarshalBinary(state); err != nil {
-		return nil
-	}
+	mylog.Check(unmarshaler.UnmarshalBinary(state))
+
 	return out
 }
 
@@ -439,22 +399,13 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return c.sendAlert(alertMissingExtension)
 	}
 
-	certificate, err := c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello))
-	if err != nil {
-		if err == errNoCertificates {
-			c.sendAlert(alertUnrecognizedName)
-		} else {
-			c.sendAlert(alertInternalError)
-		}
-		return err
-	}
-	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
-	if err != nil {
-		// getCertificate returned a certificate that is unsupported or
-		// incompatible with the client's signature algorithms.
-		c.sendAlert(alertHandshakeFailure)
-		return err
-	}
+	certificate := mylog.Check2(c.config.getCertificate(clientHelloInfo(hs.ctx, c, hs.clientHello)))
+
+	hs.sigAlg = mylog.Check2(selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms))
+
+	// getCertificate returned a certificate that is unsupported or
+	// incompatible with the client's signature algorithms.
+
 	hs.cert = certificate
 
 	return nil
@@ -476,12 +427,12 @@ func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
 
 func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) error {
 	c := hs.c
+	mylog.Check(
 
-	// The first ClientHello gets double-hashed into the transcript upon a
-	// HelloRetryRequest. See RFC 8446, Section 4.4.1.
-	if err := transcriptMsg(hs.clientHello, hs.transcript); err != nil {
-		return err
-	}
+		// The first ClientHello gets double-hashed into the transcript upon a
+		// HelloRetryRequest. See RFC 8446, Section 4.4.1.
+		transcriptMsg(hs.clientHello, hs.transcript))
+
 	chHash := hs.transcript.Sum(nil)
 	hs.transcript.Reset()
 	hs.transcript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
@@ -496,20 +447,11 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 		supportedVersion:  hs.hello.supportedVersion,
 		selectedGroup:     selectedGroup,
 	}
-
-	if _, err := hs.c.writeHandshakeRecord(helloRetryRequest, hs.transcript); err != nil {
-		return err
-	}
-
-	if err := hs.sendDummyChangeCipherSpec(); err != nil {
-		return err
-	}
+	mylog.Check2(hs.c.writeHandshakeRecord(helloRetryRequest, hs.transcript))
+	mylog.Check(hs.sendDummyChangeCipherSpec())
 
 	// clientHelloMsg is not included in the transcript.
-	msg, err := c.readHandshake(nil)
-	if err != nil {
-		return err
-	}
+	msg := mylog.Check2(c.readHandshake(nil))
 
 	clientHello, ok := msg.(*clientHelloMsg)
 	if !ok {
@@ -596,17 +538,9 @@ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
 
 func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	c := hs.c
-
-	if err := transcriptMsg(hs.clientHello, hs.transcript); err != nil {
-		return err
-	}
-	if _, err := hs.c.writeHandshakeRecord(hs.hello, hs.transcript); err != nil {
-		return err
-	}
-
-	if err := hs.sendDummyChangeCipherSpec(); err != nil {
-		return err
-	}
+	mylog.Check(transcriptMsg(hs.clientHello, hs.transcript))
+	mylog.Check2(hs.c.writeHandshakeRecord(hs.hello, hs.transcript))
+	mylog.Check(hs.sendDummyChangeCipherSpec())
 
 	earlySecret := hs.earlySecret
 	if earlySecret == nil {
@@ -629,33 +563,19 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 		c.quicSetWriteSecret(QUICEncryptionLevelHandshake, hs.suite.id, serverSecret)
 		c.quicSetReadSecret(QUICEncryptionLevelHandshake, hs.suite.id, clientSecret)
 	}
-
-	err := c.config.writeKeyLog(keyLogLabelClientHandshake, hs.clientHello.random, clientSecret)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	err = c.config.writeKeyLog(keyLogLabelServerHandshake, hs.clientHello.random, serverSecret)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
+	mylog.Check(c.config.writeKeyLog(keyLogLabelClientHandshake, hs.clientHello.random, clientSecret))
+	mylog.Check(c.config.writeKeyLog(keyLogLabelServerHandshake, hs.clientHello.random, serverSecret))
 
 	encryptedExtensions := new(encryptedExtensionsMsg)
 	encryptedExtensions.alpnProtocol = c.clientProtocol
 
 	if c.quic != nil {
-		p, err := c.quicGetTransportParameters()
-		if err != nil {
-			return err
-		}
+		p := mylog.Check2(c.quicGetTransportParameters())
+
 		encryptedExtensions.quicTransportParameters = p
 		encryptedExtensions.earlyData = hs.earlyData
 	}
-
-	if _, err := hs.c.writeHandshakeRecord(encryptedExtensions, hs.transcript); err != nil {
-		return err
-	}
+	mylog.Check2(hs.c.writeHandshakeRecord(encryptedExtensions, hs.transcript))
 
 	return nil
 }
@@ -681,10 +601,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		if c.config.ClientCAs != nil {
 			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
 		}
+		mylog.Check2(hs.c.writeHandshakeRecord(certReq, hs.transcript))
 
-		if _, err := hs.c.writeHandshakeRecord(certReq, hs.transcript); err != nil {
-			return err
-		}
 	}
 
 	certMsg := new(certificateMsgTLS13)
@@ -692,41 +610,25 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	certMsg.certificate = *hs.cert
 	certMsg.scts = hs.clientHello.scts && len(hs.cert.SignedCertificateTimestamps) > 0
 	certMsg.ocspStapling = hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0
-
-	if _, err := hs.c.writeHandshakeRecord(certMsg, hs.transcript); err != nil {
-		return err
-	}
+	mylog.Check2(hs.c.writeHandshakeRecord(certMsg, hs.transcript))
 
 	certVerifyMsg := new(certificateVerifyMsg)
 	certVerifyMsg.hasSignatureAlgorithm = true
 	certVerifyMsg.signatureAlgorithm = hs.sigAlg
 
-	sigType, sigHash, err := typeAndHashFromSignatureScheme(hs.sigAlg)
-	if err != nil {
-		return c.sendAlert(alertInternalError)
-	}
+	sigType, sigHash := mylog.Check3(typeAndHashFromSignatureScheme(hs.sigAlg))
 
 	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
-	if err != nil {
-		public := hs.cert.PrivateKey.(crypto.Signer).Public()
-		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&
-			rsaKey.N.BitLen()/8 < sigHash.Size()*2+2 { // key too small for RSA-PSS
-			c.sendAlert(alertHandshakeFailure)
-		} else {
-			c.sendAlert(alertInternalError)
-		}
-		return errors.New("tls: failed to sign handshake: " + err.Error())
-	}
-	certVerifyMsg.signature = sig
+	sig := mylog.Check2(hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts))
 
-	if _, err := hs.c.writeHandshakeRecord(certVerifyMsg, hs.transcript); err != nil {
-		return err
-	}
+	// key too small for RSA-PSS
+
+	certVerifyMsg.signature = sig
+	mylog.Check2(hs.c.writeHandshakeRecord(certVerifyMsg, hs.transcript))
 
 	return nil
 }
@@ -737,10 +639,7 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 	finished := &finishedMsg{
 		verifyData: hs.suite.finishedHash(c.out.trafficSecret, hs.transcript),
 	}
-
-	if _, err := hs.c.writeHandshakeRecord(finished, hs.transcript); err != nil {
-		return err
-	}
+	mylog.Check2(hs.c.writeHandshakeRecord(finished, hs.transcript))
 
 	// Derive secrets that take context through the server Finished.
 
@@ -760,17 +659,8 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 		}
 		c.quicSetWriteSecret(QUICEncryptionLevelApplication, hs.suite.id, serverSecret)
 	}
-
-	err := c.config.writeKeyLog(keyLogLabelClientTraffic, hs.clientHello.random, hs.trafficSecret)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	err = c.config.writeKeyLog(keyLogLabelServerTraffic, hs.clientHello.random, serverSecret)
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
+	mylog.Check(c.config.writeKeyLog(keyLogLabelClientTraffic, hs.clientHello.random, hs.trafficSecret))
+	mylog.Check(c.config.writeKeyLog(keyLogLabelServerTraffic, hs.clientHello.random, serverSecret))
 
 	c.ekm = hs.suite.exportKeyingMaterial(hs.masterSecret, hs.transcript)
 
@@ -778,9 +668,7 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 	// precompute the client finished and roll the transcript forward to send
 	// session tickets in our first flight.
 	if !hs.requestClientCert() {
-		if err := hs.sendSessionTickets(); err != nil {
-			return err
-		}
+		mylog.Check(hs.sendSessionTickets())
 	}
 
 	return nil
@@ -812,9 +700,7 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	finishedMsg := &finishedMsg{
 		verifyData: hs.clientFinished,
 	}
-	if err := transcriptMsg(finishedMsg, hs.transcript); err != nil {
-		return err
-	}
+	mylog.Check(transcriptMsg(finishedMsg, hs.transcript))
 
 	c.resumptionSecret = hs.suite.deriveSecret(hs.masterSecret,
 		resumptionLabel, hs.transcript)
@@ -837,27 +723,17 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 
 	m := new(newSessionTicketMsgTLS13)
 
-	state, err := c.sessionState()
-	if err != nil {
-		return err
-	}
+	state := mylog.Check2(c.sessionState())
+
 	state.secret = psk
 	state.EarlyData = earlyData
 	if c.config.WrapSession != nil {
-		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
-		if err != nil {
-			return err
-		}
+		m.label = mylog.Check2(c.config.WrapSession(c.connectionStateLocked(), state))
 	} else {
-		stateBytes, err := state.Bytes()
-		if err != nil {
-			c.sendAlert(alertInternalError)
-			return err
-		}
-		m.label, err = c.config.encryptTicket(stateBytes, c.ticketKeys)
-		if err != nil {
-			return err
-		}
+		stateBytes := mylog.Check2(state.Bytes())
+
+		m.label = mylog.Check2(c.config.encryptTicket(stateBytes, c.ticketKeys))
+
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
 
@@ -865,20 +741,15 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 	// The value is not stored anywhere; we never need to check the ticket age
 	// because 0-RTT is not supported.
 	ageAdd := make([]byte, 4)
-	_, err = c.config.rand().Read(ageAdd)
-	if err != nil {
-		return err
-	}
+	_ = mylog.Check2(c.config.rand().Read(ageAdd))
+
 	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
 
 	if earlyData {
 		// RFC 9001, Section 4.6.1
 		m.maxEarlyData = 0xffffffff
 	}
-
-	if _, err := c.writeHandshakeRecord(m, nil); err != nil {
-		return err
-	}
+	mylog.Check2(c.writeHandshakeRecord(m, nil))
 
 	return nil
 }
@@ -890,10 +761,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		// Make sure the connection is still being verified whether or not
 		// the server requested a client certificate.
 		if c.config.VerifyConnection != nil {
-			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
-				c.sendAlert(alertBadCertificate)
-				return err
-			}
+			mylog.Check(c.config.VerifyConnection(c.connectionStateLocked()))
 		}
 		return nil
 	}
@@ -901,36 +769,24 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 	// If we requested a client certificate, then the client must send a
 	// certificate message. If it's empty, no CertificateVerify is sent.
 
-	msg, err := c.readHandshake(hs.transcript)
-	if err != nil {
-		return err
-	}
+	msg := mylog.Check2(c.readHandshake(hs.transcript))
 
 	certMsg, ok := msg.(*certificateMsgTLS13)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)
 		return unexpectedMessageError(certMsg, msg)
 	}
-
-	if err := c.processCertsFromClient(certMsg.certificate); err != nil {
-		return err
-	}
+	mylog.Check(c.processCertsFromClient(certMsg.certificate))
 
 	if c.config.VerifyConnection != nil {
-		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
-			c.sendAlert(alertBadCertificate)
-			return err
-		}
+		mylog.Check(c.config.VerifyConnection(c.connectionStateLocked()))
 	}
 
 	if len(certMsg.certificate.Certificate) != 0 {
 		// certificateVerifyMsg is included in the transcript, but not until
 		// after we verify the handshake signature, since the state before
 		// this message was sent is used.
-		msg, err = c.readHandshake(nil)
-		if err != nil {
-			return err
-		}
+		msg = mylog.Check2(c.readHandshake(nil))
 
 		certVerify, ok := msg.(*certificateVerifyMsg)
 		if !ok {
@@ -943,31 +799,23 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
-		sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
-		if err != nil {
-			return c.sendAlert(alertInternalError)
-		}
+		sigType, sigHash := mylog.Check3(typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm))
+
 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
 		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
-		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
-			sigHash, signed, certVerify.signature); err != nil {
-			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
-		}
+		mylog.Check(verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
+			sigHash, signed, certVerify.signature))
+		mylog.Check(transcriptMsg(certVerify, hs.transcript))
 
-		if err := transcriptMsg(certVerify, hs.transcript); err != nil {
-			return err
-		}
 	}
+	mylog.Check(
 
-	// If we waited until the client certificates to send session tickets, we
-	// are ready to do it now.
-	if err := hs.sendSessionTickets(); err != nil {
-		return err
-	}
+		// If we waited until the client certificates to send session tickets, we
+		// are ready to do it now.
+		hs.sendSessionTickets())
 
 	return nil
 }
@@ -976,10 +824,7 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 	c := hs.c
 
 	// finishedMsg is not included in the transcript.
-	msg, err := c.readHandshake(nil)
-	if err != nil {
-		return err
-	}
+	msg := mylog.Check2(c.readHandshake(nil))
 
 	finished, ok := msg.(*finishedMsg)
 	if !ok {

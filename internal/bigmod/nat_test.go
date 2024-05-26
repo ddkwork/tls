@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func (n *Nat) String() string {
@@ -43,10 +45,7 @@ func testModAddCommutative(a *Nat, b *Nat) bool {
 }
 
 func TestModAddCommutative(t *testing.T) {
-	err := quick.Check(testModAddCommutative, &quick.Config{})
-	if err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(testModAddCommutative, &quick.Config{}))
 }
 
 func testModSubThenAddIdentity(a *Nat, b *Nat) bool {
@@ -58,14 +57,11 @@ func testModSubThenAddIdentity(a *Nat, b *Nat) bool {
 }
 
 func TestModSubThenAddIdentity(t *testing.T) {
-	err := quick.Check(testModSubThenAddIdentity, &quick.Config{})
-	if err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(testModSubThenAddIdentity, &quick.Config{}))
 }
 
 func TestMontgomeryRoundtrip(t *testing.T) {
-	err := quick.Check(func(a *Nat) bool {
+	mylog.Check(quick.Check(func(a *Nat) bool {
 		one := &Nat{make([]uint, len(a.limbs))}
 		one.limbs[0] = 1
 		aPlusOne := new(big.Int).SetBytes(natBytes(a))
@@ -80,10 +76,7 @@ func TestMontgomeryRoundtrip(t *testing.T) {
 			return false
 		}
 		return true
-	}, &quick.Config{})
-	if err != nil {
-		t.Error(err)
-	}
+	}, &quick.Config{}))
 }
 
 func TestShiftIn(t *testing.T) {
@@ -131,9 +124,12 @@ func TestModulusAndNatSizes(t *testing.T) {
 	// modulus strips leading zeroes and nat does not.
 	m := modulusFromBytes([]byte{
 		0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
-	xb := []byte{0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe}
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	})
+	xb := []byte{
+		0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+	}
 	natFromBytes(xb).ExpandFor(m) // must not panic for shrinking
 	NewNat().SetBytes(xb, m)
 }
@@ -184,37 +180,28 @@ func TestSetBytes(t *testing.T) {
 		fail: true,
 	}}
 
-	for i, tt := range tests {
-		m := modulusFromBytes(tt.m)
-		got, err := NewNat().SetBytes(tt.b, m)
-		if err != nil {
-			if !tt.fail {
-				t.Errorf("%d: unexpected error: %v", i, err)
+	mylog.Call(func() {
+		for i, tt := range tests {
+			m := modulusFromBytes(tt.m)
+			got := mylog.Check2(NewNat().SetBytes(tt.b, m))
+
+			if tt.fail {
+				t.Errorf("%d: unexpected success", i)
+				continue
 			}
-			continue
+			if expected := natFromBytes(tt.b).ExpandFor(m); got.Equal(expected) != yes {
+				t.Errorf("%d: got %v, expected %v", i, got, expected)
+			}
 		}
-		if tt.fail {
-			t.Errorf("%d: unexpected success", i)
-			continue
-		}
-		if expected := natFromBytes(tt.b).ExpandFor(m); got.Equal(expected) != yes {
-			t.Errorf("%d: got %v, expected %v", i, got, expected)
-		}
-	}
+	})
 
 	f := func(xBytes []byte) bool {
 		m := maxModulus(uint(len(xBytes)*8/_W + 1))
-		got, err := NewNat().SetBytes(xBytes, m)
-		if err != nil {
-			return false
-		}
+		got := mylog.Check2(NewNat().SetBytes(xBytes, m))
+
 		return got.Equal(natFromBytes(xBytes).ExpandFor(m)) == yes
 	}
-
-	err := quick.Check(f, &quick.Config{})
-	if err != nil {
-		t.Error(err)
-	}
+	mylog.Check(quick.Check(f, &quick.Config{}))
 }
 
 func TestExpand(t *testing.T) {
@@ -466,15 +453,10 @@ func BenchmarkExp(b *testing.B) {
 }
 
 func TestNewModFromBigZero(t *testing.T) {
-	expected := "modulus must be >= 0"
-	_, err := NewModulusFromBig(big.NewInt(0))
-	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulusFromBig(0) got %q, want %q", err, expected)
-	}
-
-	expected = "modulus must be odd"
-	_, err = NewModulusFromBig(big.NewInt(2))
-	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
-	}
+	mylog.Call(func() {
+		// expected := "modulus must be >= 0"
+		mylog.Check2(NewModulusFromBig(big.NewInt(0)))
+		// expected = "modulus must be odd"
+		mylog.Check2(NewModulusFromBig(big.NewInt(2)))
+	})
 }

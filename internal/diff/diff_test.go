@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ddkwork/golibrary/mylog"
 	"github.com/ddkwork/tls/internal/txtar"
 )
 
@@ -26,10 +27,8 @@ func Test(t *testing.T) {
 
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
-			a, err := txtar.ParseFile(file)
-			if err != nil {
-				t.Fatal(err)
-			}
+			a := mylog.Check2(txtar.ParseFile(file))
+
 			if len(a.Files) != 3 || a.Files[2].Name != "diff" {
 				t.Fatalf("%s: want three files, third named \"diff\"", file)
 			}

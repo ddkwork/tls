@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 const (
@@ -885,9 +887,8 @@ func (c *Config) initLegacySessionTicketKeyRLocked() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if c.SessionTicketKey == [32]byte{} {
-		if _, err := io.ReadFull(c.rand(), c.SessionTicketKey[:]); err != nil {
-			panic(fmt.Sprintf("tls: unable to generate random session ticket key: %v", err))
-		}
+		mylog.Check2(io.ReadFull(c.rand(), c.SessionTicketKey[:]))
+
 		// Write the deprecated prefix at the beginning so we know we created
 		// it. This key with the DEPRECATED prefix isn't used as an actual
 		// session ticket key, and is only randomized in case the application
@@ -896,7 +897,6 @@ func (c *Config) initLegacySessionTicketKeyRLocked() {
 	} else if !bytes.HasPrefix(c.SessionTicketKey[:], deprecatedSessionTicketKey) && len(c.sessionTicketKeys) == 0 {
 		c.sessionTicketKeys = []ticketKey{c.ticketKeyFromBytes(c.SessionTicketKey)}
 	}
-
 }
 
 // ticketKeys returns the ticketKeys for this connection.
@@ -947,9 +947,8 @@ func (c *Config) ticketKeys(configForClient *Config) []ticketKey {
 	// Re-check the condition in case it changed since obtaining the new lock.
 	if len(c.autoSessionTicketKeys) == 0 || c.time().Sub(c.autoSessionTicketKeys[0].created) >= ticketKeyRotation {
 		var newKey [32]byte
-		if _, err := io.ReadFull(c.rand(), newKey[:]); err != nil {
-			panic(fmt.Sprintf("unable to generate random session ticket key: %v", err))
-		}
+		mylog.Check2(io.ReadFull(c.rand(), newKey[:]))
+
 		valid := make([]ticketKey, 0, len(c.autoSessionTicketKeys)+1)
 		valid = append(valid, c.ticketKeyFromBytes(newKey))
 		for _, k := range c.autoSessionTicketKeys {
@@ -1007,8 +1006,7 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
-//var tlsrsakex = godebug.New("tlsrsakex")
-
+// var tlsrsakex = godebug.New("tlsrsakex")
 func (c *Config) cipherSuites() []uint16 {
 	if needFIPS() {
 		return fipsCipherSuites(c)
@@ -1031,11 +1029,12 @@ var supportedVersions = []uint16{
 
 // roleClient and roleServer are meant to call supportedVersions and parents
 // with more readability at the callsite.
-const roleClient = true
-const roleServer = false
+const (
+	roleClient = true
+	roleServer = false
+)
 
-//var tls10server = godebug.New("tls10server")
-
+// var tls10server = godebug.New("tls10server")
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
@@ -1044,7 +1043,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
 			if isClient {
-				//if isClient || tls10server.Value() != "1" {
+				// if isClient || tls10server.Value() != "1" {
 				continue
 			}
 		}
@@ -1123,9 +1122,9 @@ var errNoCertificates = errors.New("tls: no certificates configured")
 func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
 	if c.GetCertificate != nil &&
 		(len(c.Certificates) == 0 || len(clientHello.ServerName) > 0) {
-		cert, err := c.GetCertificate(clientHello)
-		if cert != nil || err != nil {
-			return cert, err
+		cert := mylog.Check2(c.GetCertificate(clientHello))
+		if cert != nil {
+			return cert, nil
 		}
 	}
 
@@ -1154,9 +1153,8 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	}
 
 	for _, cert := range c.Certificates {
-		if err := clientHello.SupportsCertificate(&cert); err == nil {
-			return &cert, nil
-		}
+		mylog.Check(clientHello.SupportsCertificate(&cert))
+		return &cert, nil
 	}
 
 	// If nothing matches, return the first certificate.
@@ -1192,13 +1190,9 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	// If the client specified the name they are trying to connect to, the
 	// certificate needs to be valid for it.
 	if chi.ServerName != "" {
-		x509Cert, err := c.leaf()
-		if err != nil {
-			return fmt.Errorf("failed to parse certificate: %w", err)
-		}
-		if err := x509Cert.VerifyHostname(chi.ServerName); err != nil {
-			return fmt.Errorf("certificate is not valid for requested server name: %w", err)
-		}
+		x509Cert := mylog.Check2(c.leaf())
+		mylog.Check(x509Cert.VerifyHostname(chi.ServerName))
+
 	}
 
 	// supportsRSAFallback returns nil if the certificate and connection support
@@ -1240,9 +1234,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	// If the client sent the signature_algorithms extension, ensure it supports
 	// schemes we can use with this certificate and TLS version.
 	if len(chi.SignatureSchemes) > 0 {
-		if _, err := selectSignatureScheme(vers, c, chi.SignatureSchemes); err != nil {
-			return supportsRSAFallback(err)
-		}
+		mylog.Check2(selectSignatureScheme(vers, c, chi.SignatureSchemes))
 	}
 
 	// In TLS 1.3 we are done because supported_groups is only relevant to the
@@ -1328,9 +1320,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 // the server that sent the CertificateRequest. Otherwise, it returns an error
 // describing the reason for the incompatibility.
 func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
-	if _, err := selectSignatureScheme(cri.Version, c, cri.SignatureSchemes); err != nil {
-		return err
-	}
+	mylog.Check2(selectSignatureScheme(cri.Version, c, cri.SignatureSchemes))
 
 	if len(cri.AcceptableCAs) == 0 {
 		return nil
@@ -1341,10 +1331,7 @@ func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
 		// Parse the certificate if this isn't the leaf node, or if
 		// chain.Leaf was nil.
 		if j != 0 || x509Cert == nil {
-			var err error
-			if x509Cert, err = x509.ParseCertificate(cert); err != nil {
-				return fmt.Errorf("failed to parse certificate #%d in the chain: %w", j, err)
-			}
+			x509Cert = mylog.Check2(x509.ParseCertificate(cert))
 		}
 
 		for _, ca := range cri.AcceptableCAs {
@@ -1367,10 +1354,8 @@ func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		x509Cert, err := cert.leaf()
-		if err != nil {
-			continue
-		}
+		x509Cert := mylog.Check2(cert.leaf())
+
 		// If SANs are *not* present, some clients will consider the certificate
 		// valid for the name in the Common Name.
 		if x509Cert.Subject.CommonName != "" && len(x509Cert.DNSNames) == 0 {
@@ -1398,10 +1383,9 @@ func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
 	logLine := fmt.Appendf(nil, "%s %x %x\n", label, clientRandom, secret)
 
 	writerMutex.Lock()
-	_, err := c.KeyLogWriter.Write(logLine)
+	mylog.Check2(c.KeyLogWriter.Write(logLine))
 	writerMutex.Unlock()
-
-	return err
+	return nil
 }
 
 // writerMutex protects all KeyLogWriters globally. It is rarely enabled,

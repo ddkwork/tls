@@ -7,6 +7,8 @@ package tls
 import (
 	"crypto"
 	"testing"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func TestSignatureSelection(t *testing.T) {
@@ -57,17 +59,13 @@ func TestSignatureSelection(t *testing.T) {
 	}
 
 	for testNo, test := range tests {
-		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
-		if err != nil {
-			t.Errorf("test[%d]: unexpected selectSignatureScheme error: %v", testNo, err)
-		}
+		sigAlg := mylog.Check2(selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs))
+
 		if test.expectedSigAlg != sigAlg {
 			t.Errorf("test[%d]: expected signature scheme %v, got %v", testNo, test.expectedSigAlg, sigAlg)
 		}
-		sigType, hashFunc, err := typeAndHashFromSignatureScheme(sigAlg)
-		if err != nil {
-			t.Errorf("test[%d]: unexpected typeAndHashFromSignatureScheme error: %v", testNo, err)
-		}
+		sigType, hashFunc := mylog.Check3(typeAndHashFromSignatureScheme(sigAlg))
+
 		if test.expectedSigType != sigType {
 			t.Errorf("test[%d]: expected signature algorithm %#x, got %#x", testNo, test.expectedSigType, sigType)
 		}
@@ -112,19 +110,14 @@ func TestSignatureSelection(t *testing.T) {
 		{rsaCert, []SignatureScheme{PSSWithSHA512}, VersionTLS12},
 	}
 
-	for testNo, test := range badTests {
-		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
-		if err == nil {
-			t.Errorf("test[%d]: unexpected success, got %v", testNo, sigAlg)
-		}
+	for _, test := range badTests {
+		mylog.Check2(selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs))
 	}
 }
 
 func TestLegacyTypeAndHash(t *testing.T) {
-	sigType, hashFunc, err := legacyTypeAndHashFromPublicKey(testRSAPrivateKey.Public())
-	if err != nil {
-		t.Errorf("RSA: unexpected error: %v", err)
-	}
+	sigType, hashFunc := mylog.Check3(legacyTypeAndHashFromPublicKey(testRSAPrivateKey.Public()))
+
 	if expectedSigType := signaturePKCS1v15; expectedSigType != sigType {
 		t.Errorf("RSA: expected signature type %#x, got %#x", expectedSigType, sigType)
 	}
@@ -132,32 +125,24 @@ func TestLegacyTypeAndHash(t *testing.T) {
 		t.Errorf("RSA: expected hash %#x, got %#x", expectedHashFunc, hashFunc)
 	}
 
-	sigType, hashFunc, err = legacyTypeAndHashFromPublicKey(testECDSAPrivateKey.Public())
-	if err != nil {
-		t.Errorf("ECDSA: unexpected error: %v", err)
-	}
+	sigType, hashFunc = mylog.Check3(legacyTypeAndHashFromPublicKey(testECDSAPrivateKey.Public()))
+
 	if expectedSigType := signatureECDSA; expectedSigType != sigType {
 		t.Errorf("ECDSA: expected signature type %#x, got %#x", expectedSigType, sigType)
 	}
 	if expectedHashFunc := crypto.SHA1; expectedHashFunc != hashFunc {
 		t.Errorf("ECDSA: expected hash %#x, got %#x", expectedHashFunc, hashFunc)
 	}
-
 	// Ed25519 is not supported by TLS 1.0 and 1.1.
-	_, _, err = legacyTypeAndHashFromPublicKey(testEd25519PrivateKey.Public())
-	if err == nil {
-		t.Errorf("Ed25519: unexpected success")
-	}
+	mylog.Check3(legacyTypeAndHashFromPublicKey(testEd25519PrivateKey.Public()))
 }
 
 // TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
 // have valid type and hash information.
 func TestSupportedSignatureAlgorithms(t *testing.T) {
 	for _, sigAlg := range supportedSignatureAlgorithms() {
-		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
-		if err != nil {
-			t.Errorf("%v: unexpected error: %v", sigAlg, err)
-		}
+		sigType, hash := mylog.Check3(typeAndHashFromSignatureScheme(sigAlg))
+
 		if sigType == 0 {
 			t.Errorf("%v: missing signature type", sigAlg)
 		}

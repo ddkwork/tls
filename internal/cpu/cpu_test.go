@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/ddkwork/golibrary/mylog"
+
 	. "github.com/ddkwork/tls/internal/cpu"
 )
 
@@ -24,17 +26,10 @@ func MustSupportFeatureDetection(t *testing.T) {
 
 func runDebugOptionsTest(t *testing.T, test string, options string) {
 	MustHaveDebugOptionsSupport(t)
-
 	env := "GODEBUG=" + options
-
 	cmd := exec.Command(os.Args[0], "-test.run=^"+test+"$")
 	cmd.Env = append(cmd.Env, env)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s with %s: run failed: %v output:\n%s\n",
-			test, env, err, string(output))
-	}
+	mylog.Check2(cmd.CombinedOutput())
 }
 
 func TestDisableAllCapabilities(t *testing.T) {

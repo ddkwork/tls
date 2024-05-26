@@ -10,14 +10,13 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/ddkwork/golibrary/mylog"
 	. "github.com/ddkwork/tls/internal/cpu"
 )
 
 func getFeatureList() ([]string, error) {
-	cpuinfo, err := os.ReadFile("/proc/cpuinfo")
-	if err != nil {
-		return nil, err
-	}
+	cpuinfo := mylog.Check2(os.ReadFile("/proc/cpuinfo"))
+
 	r := regexp.MustCompile("features\\s*:\\s*(.*)")
 	b := r.FindSubmatch(cpuinfo)
 	if len(b) < 2 {
@@ -40,10 +39,8 @@ func TestS390XAgainstCPUInfo(t *testing.T) {
 	mandatory["ldisp"] = false
 	mandatory["stfle"] = false
 
-	features, err := getFeatureList()
-	if err != nil {
-		t.Error(err)
-	}
+	features := mylog.Check2(getFeatureList())
+
 	for _, feature := range features {
 		if _, ok := mandatory[feature]; ok {
 			mandatory[feature] = true

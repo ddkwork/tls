@@ -181,6 +181,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // New creates and returns a new Matcher implementing the given pattern.
@@ -402,8 +404,8 @@ func printFileLine(w Writer, h uint64, file string, line int) error {
 	b = AppendMarker(b, h)
 	b = appendFileLine(b, file, line)
 	b = append(b, '\n')
-	_, err := w.Write(b)
-	return err
+	mylog.Check2(w.Write(b))
+	return nil
 }
 
 // appendFileLine appends file:line to dst, returning the extended slice.
@@ -496,8 +498,8 @@ func PrintMarker(w Writer, h uint64) error {
 	var buf [50]byte
 	b := AppendMarker(buf[:0], h)
 	b = append(b, '\n')
-	_, err := w.Write(b)
-	return err
+	mylog.Check2(w.Write(b))
+	return nil
 }
 
 // printStack prints to w a multi-line report containing a formatting of the call stack stk,
@@ -524,8 +526,8 @@ func printStack(w Writer, h uint64, stk []uintptr) error {
 	}
 	buf = append(buf, prefix...)
 	buf = append(buf, '\n')
-	_, err := w.Write(buf)
-	return err
+	mylog.Check2(w.Write(buf))
+	return nil
 }
 
 // Marker returns the match marker text to use on any line reporting details

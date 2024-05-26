@@ -7,6 +7,8 @@ package edwards25519
 import (
 	"testing"
 	"testing/quick"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 func TestScalarAliasing(t *testing.T) {
@@ -71,7 +73,7 @@ func TestScalarAliasing(t *testing.T) {
 		return x == x1 && y == y1
 	}
 
-	for name, f := range map[string]interface{}{
+	for _, f := range map[string]interface{}{
 		"Negate": func(v, x Scalar) bool {
 			return checkAliasingOneArg((*Scalar).Negate, v, x)
 		},
@@ -100,9 +102,6 @@ func TestScalarAliasing(t *testing.T) {
 			}, v, x, y)
 		},
 	} {
-		err := quick.Check(f, quickCheckConfig(32))
-		if err != nil {
-			t.Errorf("%v: %v", name, err)
-		}
+		mylog.Check(quick.Check(f, quickCheckConfig(32)))
 	}
 }

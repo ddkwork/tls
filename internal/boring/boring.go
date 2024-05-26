@@ -13,11 +13,13 @@ package boring
 #include "goboringcrypto.h"
 */
 import "C"
+
 import (
-	"github.com/ddkwork/tls/internal/boring/sig"
-	_ "github.com/ddkwork/tls/internal/boring/syso"
 	"math/bits"
 	"unsafe"
+
+	"github.com/ddkwork/tls/internal/boring/sig"
+	_ "github.com/ddkwork/tls/internal/boring/syso"
 )
 
 const available = true

@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // a keyAgreement implements the client and server side of a TLS key agreement
@@ -35,8 +37,10 @@ type keyAgreement interface {
 	generateClientKeyExchange(*Config, *clientHelloMsg, *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
 }
 
-var errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
-var errServerKeyExchange = errors.New("tls: invalid ServerKeyExchange message")
+var (
+	errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
+	errServerKeyExchange = errors.New("tls: invalid ServerKeyExchange message")
+)
 
 // rsaKeyAgreement implements the standard TLS key agreement where the client
 // encrypts the pre-master secret to the server's public key.
@@ -61,10 +65,8 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
 	}
 	// Perform constant time RSA PKCS #1 v1.5 decryption
-	preMasterSecret, err := priv.Decrypt(config.rand(), ciphertext, &rsa.PKCS1v15DecryptOptions{SessionKeyLen: 48})
-	if err != nil {
-		return nil, err
-	}
+	preMasterSecret := mylog.Check2(priv.Decrypt(config.rand(), ciphertext, &rsa.PKCS1v15DecryptOptions{SessionKeyLen: 48}))
+
 	// We don't check the version number in the premaster secret. For one,
 	// by checking it, we would leak information about the validity of the
 	// encrypted pre-master secret. Secondly, it provides only a small
@@ -82,19 +84,14 @@ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello 
 	preMasterSecret := make([]byte, 48)
 	preMasterSecret[0] = byte(clientHello.vers >> 8)
 	preMasterSecret[1] = byte(clientHello.vers)
-	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
-	if err != nil {
-		return nil, nil, err
-	}
+	mylog.Check2(io.ReadFull(config.rand(), preMasterSecret[2:]))
 
 	rsaKey, ok := cert.PublicKey.(*rsa.PublicKey)
 	if !ok {
 		return nil, nil, errors.New("tls: server certificate contains incorrect key type for selected ciphersuite")
 	}
-	encrypted, err := rsa.EncryptPKCS1v15(config.rand(), rsaKey, preMasterSecret)
-	if err != nil {
-		return nil, nil, err
-	}
+	encrypted := mylog.Check2(rsa.EncryptPKCS1v15(config.rand(), rsaKey, preMasterSecret))
+
 	ckx := new(clientKeyExchangeMsg)
 	ckx.ciphertext = make([]byte, len(encrypted)+2)
 	ckx.ciphertext[0] = byte(len(encrypted) >> 8)
@@ -182,10 +179,8 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
 	}
 
-	key, err := generateECDHEKey(config.rand(), curveID)
-	if err != nil {
-		return nil, err
-	}
+	key := mylog.Check2(generateECDHEKey(config.rand(), curveID))
+
 	ka.key = key
 
 	// See RFC 4492, Section 5.4.
@@ -206,19 +201,12 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	var sigType uint8
 	var sigHash crypto.Hash
 	if ka.version >= VersionTLS12 {
-		signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
-		if err != nil {
-			return nil, err
-		}
-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
-		if err != nil {
-			return nil, err
-		}
+		signatureAlgorithm = mylog.Check2(selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms))
+
+		sigType, sigHash = mylog.Check3(typeAndHashFromSignatureScheme(signatureAlgorithm))
+
 	} else {
-		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(priv.Public())
-		if err != nil {
-			return nil, err
-		}
+		sigType, sigHash = mylog.Check3(legacyTypeAndHashFromPublicKey(priv.Public()))
 	}
 	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
@@ -230,10 +218,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := priv.Sign(config.rand(), signed, signOpts)
-	if err != nil {
-		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
-	}
+	sig := mylog.Check2(priv.Sign(config.rand(), signed, signOpts))
 
 	skx := new(serverKeyExchangeMsg)
 	sigAndHashLen := 0
@@ -260,14 +245,9 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
 		return nil, errClientKeyExchange
 	}
 
-	peerKey, err := ka.key.Curve().NewPublicKey(ckx.ciphertext[1:])
-	if err != nil {
-		return nil, errClientKeyExchange
-	}
-	preMasterSecret, err := ka.key.ECDH(peerKey)
-	if err != nil {
-		return nil, errClientKeyExchange
-	}
+	peerKey := mylog.Check2(ka.key.Curve().NewPublicKey(ckx.ciphertext[1:]))
+
+	preMasterSecret := mylog.Check2(ka.key.ECDH(peerKey))
 
 	return preMasterSecret, nil
 }
@@ -297,20 +277,13 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		return errors.New("tls: server selected unsupported curve")
 	}
 
-	key, err := generateECDHEKey(config.rand(), curveID)
-	if err != nil {
-		return err
-	}
+	key := mylog.Check2(generateECDHEKey(config.rand(), curveID))
+
 	ka.key = key
 
-	peerKey, err := key.Curve().NewPublicKey(publicKey)
-	if err != nil {
-		return errServerKeyExchange
-	}
-	ka.preMasterSecret, err = key.ECDH(peerKey)
-	if err != nil {
-		return errServerKeyExchange
-	}
+	peerKey := mylog.Check2(key.Curve().NewPublicKey(publicKey))
+
+	ka.preMasterSecret = mylog.Check2(key.ECDH(peerKey))
 
 	ourPublicKey := key.PublicKey().Bytes()
 	ka.ckx = new(clientKeyExchangeMsg)
@@ -330,15 +303,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		if !isSupportedSignatureAlgorithm(signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
 			return errors.New("tls: certificate used with invalid signature algorithm")
 		}
-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
-		if err != nil {
-			return err
-		}
+		sigType, sigHash = mylog.Check3(typeAndHashFromSignatureScheme(signatureAlgorithm))
+
 	} else {
-		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(cert.PublicKey)
-		if err != nil {
-			return err
-		}
+		sigType, sigHash = mylog.Check3(legacyTypeAndHashFromPublicKey(cert.PublicKey))
 	}
 	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 		return errServerKeyExchange
@@ -351,9 +319,8 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	sig = sig[2:]
 
 	signed := hashForServerKeyExchange(sigType, sigHash, ka.version, clientHello.random, serverHello.random, serverECDHEParams)
-	if err := verifyHandshakeSignature(sigType, cert.PublicKey, sigHash, signed, sig); err != nil {
-		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
-	}
+	mylog.Check(verifyHandshakeSignature(sigType, cert.PublicKey, sigHash, signed, sig))
+
 	return nil
 }
 

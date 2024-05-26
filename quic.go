@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // QUICEncryptionLevel represents a QUIC encryption level used to transmit
@@ -242,9 +244,8 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 		if len(b) < 4+n {
 			return nil
 		}
-		if err := q.conn.handlePostHandshakeMessage(); err != nil {
-			q.conn.handshakeErr = err
-		}
+		mylog.Check(q.conn.handlePostHandshakeMessage())
+
 	}
 	if q.conn.handshakeErr != nil {
 		return quicError(q.conn.handshakeErr)
@@ -316,9 +317,7 @@ func quicError(err error) error {
 
 func (c *Conn) quicReadHandshakeBytes(n int) error {
 	for c.hand.Len() < n {
-		if err := c.quicWaitForSignal(); err != nil {
-			return err
-		}
+		mylog.Check(c.quicWaitForSignal())
 	}
 	return nil
 }
@@ -370,9 +369,7 @@ func (c *Conn) quicGetTransportParameters() ([]byte, error) {
 		})
 	}
 	for c.quic.transportParams == nil {
-		if err := c.quicWaitForSignal(); err != nil {
-			return nil, err
-		}
+		mylog.Check(c.quicWaitForSignal())
 	}
 	return c.quic.transportParams, nil
 }

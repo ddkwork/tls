@@ -9,8 +9,10 @@ package cpu
 // ppc64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
 // These are initialized by archauxv and should not be changed after they are
 // initialized.
-var HWCap uint
-var HWCap2 uint
+var (
+	HWCap  uint
+	HWCap2 uint
+)
 
 // HWCAP bits. These are exposed by Linux.
 const (

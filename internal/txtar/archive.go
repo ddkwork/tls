@@ -36,6 +36,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 // An Archive is a collection of files.
@@ -66,10 +68,8 @@ func Format(a *Archive) []byte {
 
 // ParseFile parses the named file as an archive.
 func ParseFile(file string) (*Archive, error) {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
+	data := mylog.Check2(os.ReadFile(file))
+
 	return Parse(data), nil
 }
 

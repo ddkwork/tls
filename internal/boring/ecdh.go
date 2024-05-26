@@ -8,10 +8,13 @@ package boring
 
 // #include "goboringcrypto.h"
 import "C"
+
 import (
 	"errors"
 	"runtime"
 	"unsafe"
+
+	"github.com/ddkwork/golibrary/mylog"
 )
 
 type PublicKeyECDH struct {
@@ -39,10 +42,7 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 		return nil, errors.New("NewPublicKeyECDH: missing key")
 	}
 
-	nid, err := curveNID(curve)
-	if err != nil {
-		return nil, err
-	}
+	nid := mylog.Check2(curveNID(curve))
 
 	group := C._goboringcrypto_EC_GROUP_new_by_curve_name(nid)
 	if group == nil {
@@ -71,10 +71,8 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 func (k *PublicKeyECDH) Bytes() []byte { return k.bytes }
 
 func NewPrivateKeyECDH(curve string, bytes []byte) (*PrivateKeyECDH, error) {
-	nid, err := curveNID(curve)
-	if err != nil {
-		return nil, err
-	}
+	nid := mylog.Check2(curveNID(curve))
+
 	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
 	if key == nil {
 		return nil, fail("EC_KEY_new_by_curve_name")
@@ -113,11 +111,8 @@ func (k *PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error) {
 		C._goboringcrypto_EC_POINT_free(pt)
 		return nil, fail("EC_POINT_mul")
 	}
-	bytes, err := pointBytesECDH(k.curve, group, pt)
-	if err != nil {
-		C._goboringcrypto_EC_POINT_free(pt)
-		return nil, err
-	}
+	bytes := mylog.Check2(pointBytesECDH(k.curve, group, pt))
+
 	pub := &PublicKeyECDH{k.curve, pt, group, bytes}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
 	runtime.SetFinalizer(pub, (*PublicKeyECDH).finalize)
@@ -150,10 +145,8 @@ func ECDH(priv *PrivateKeyECDH, pub *PublicKeyECDH) ([]byte, error) {
 	if C._goboringcrypto_EC_POINT_mul(group, pt, nil, pub.key, privBig, nil) == 0 {
 		return nil, fail("EC_POINT_mul")
 	}
-	out, err := xCoordBytesECDH(priv.curve, group, pt)
-	if err != nil {
-		return nil, err
-	}
+	out := mylog.Check2(xCoordBytesECDH(priv.curve, group, pt))
+
 	return out, nil
 }
 
@@ -188,10 +181,8 @@ func curveSize(curve string) int {
 }
 
 func GenerateKeyECDH(curve string) (*PrivateKeyECDH, []byte, error) {
-	nid, err := curveNID(curve)
-	if err != nil {
-		return nil, nil, err
-	}
+	nid := mylog.Check2(curveNID(curve))
+
 	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
 	if key == nil {
 		return nil, nil, fail("EC_KEY_new_by_curve_name")
@@ -211,11 +202,7 @@ func GenerateKeyECDH(curve string) (*PrivateKeyECDH, []byte, error) {
 		C._goboringcrypto_EC_KEY_free(key)
 		return nil, nil, fail("EC_KEY_get0_private_key")
 	}
-	bytes, err := bigBytesECDH(curve, b)
-	if err != nil {
-		C._goboringcrypto_EC_KEY_free(key)
-		return nil, nil, err
-	}
+	bytes := mylog.Check2(bigBytesECDH(curve, b))
 
 	k := &PrivateKeyECDH{curve, key}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.

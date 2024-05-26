@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/crypto/chacha20poly1305"
 
+	"github.com/ddkwork/golibrary/mylog"
 	"github.com/ddkwork/tls/internal/boring"
 	"github.com/ddkwork/tls/internal/cpu"
 )
@@ -347,8 +348,10 @@ var rsaKexCiphers = map[uint16]bool{
 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
 }
 
-var defaultCipherSuites []uint16
-var defaultCipherSuitesWithRSAKex []uint16
+var (
+	defaultCipherSuites           []uint16
+	defaultCipherSuitesWithRSAKex []uint16
+)
 
 func init() {
 	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
@@ -517,31 +520,26 @@ func (f *xorNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]by
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
-	result, err := f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData)
+	result := mylog.Check2(f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData))
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
 
-	return result, err
+	return result, nil
 }
 
 func aeadAESGCM(key, noncePrefix []byte) aead {
 	if len(noncePrefix) != noncePrefixLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
+	aes := mylog.Check2(aes.NewCipher(key))
+
 	var aead cipher.AEAD
 	if boring.Enabled {
-		aead, err = boring.NewGCMTLS(aes)
+		aead = mylog.Check2(boring.NewGCMTLS(aes))
 	} else {
 		boring.Unreachable()
-		aead, err = cipher.NewGCM(aes)
-	}
-	if err != nil {
-		panic(err)
+		aead = mylog.Check2(cipher.NewGCM(aes))
 	}
 
 	ret := &prefixNonceAEAD{aead: aead}
@@ -553,14 +551,9 @@ func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aes, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-	aead, err := cipher.NewGCM(aes)
-	if err != nil {
-		panic(err)
-	}
+	aes := mylog.Check2(aes.NewCipher(key))
+
+	aead := mylog.Check2(cipher.NewGCM(aes))
 
 	ret := &xorNonceAEAD{aead: aead}
 	copy(ret.nonceMask[:], nonceMask)
@@ -571,10 +564,7 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")
 	}
-	aead, err := chacha20poly1305.New(key)
-	if err != nil {
-		panic(err)
-	}
+	aead := mylog.Check2(chacha20poly1305.New(key))
 
 	ret := &xorNonceAEAD{aead: aead}
 	copy(ret.nonceMask[:], nonceMask)

@@ -43,6 +43,7 @@ int EVP_AEAD_CTX_open_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
 
 */
 import "C"
+
 import (
 	"bytes"
 	"crypto/cipher"

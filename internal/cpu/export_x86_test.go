@@ -6,6 +6,4 @@
 
 package cpu
 
-var (
-	GetGOAMD64level = getGOAMD64level
-)
+var GetGOAMD64level = getGOAMD64level
