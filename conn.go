@@ -622,7 +622,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		// RFC 8446, Section 6.1 suggests that EOF without an alertCloseNotify
 		// is an error, but popular web sites seem to do this, so we accept it
 		// if and only if at the record boundary.
-		if err == io.ErrUnexpectedEOF && c.rawInput.Len() == 0 {
+		if errors.Is(err, io.ErrUnexpectedEOF) && c.rawInput.Len() == 0 {
 			err = io.EOF
 		}
 		if e, ok := err.(net.Error); !ok || !e.Temporary() {
@@ -705,7 +705,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		if len(data) != 2 {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
-		if alert(data[1]) == alertCloseNotify {
+		if errors.Is(alert(data[1]), alertCloseNotify) {
 			return c.in.setErrorLocked(io.EOF)
 		}
 		if c.vers == VersionTLS13 {

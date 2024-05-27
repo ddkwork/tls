@@ -1,5 +1,7 @@
 github.com/ddkwork/golibrary v0.0.42 h1:37/QVbltF57CUuBthZXmKTfccbt51pBLlB4kXfdPUeQ=
 github.com/ddkwork/golibrary v0.0.42/go.mod h1:ZX3tnJ9D5eWJAZYONxEic/fIrISMyIiuOKiT8NidzTM=
+github.com/ddkwork/golibrary v0.0.46 h1:m3uL4v+DOrTMtNCPDC0y76f/LUDygb3v7CMQSjzSgcY=
+github.com/ddkwork/golibrary v0.0.46/go.mod h1:ZX3tnJ9D5eWJAZYONxEic/fIrISMyIiuOKiT8NidzTM=
 github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
 github.com/fatih/color v1.17.0/go.mod h1:YZ7TlrGPkiz6ku9fK3TLD/pl3CpsiFyu8N92HLgmosI=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
