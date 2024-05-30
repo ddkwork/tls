@@ -344,8 +344,7 @@ func TestAlertForwarding(t *testing.T) {
 func TestClose(t *testing.T) {
 	c, s := localPipe(t)
 	go c.Close()
-
-	err := Server(s, testConfig).Handshake()
+	mylog.Check(Server(s, testConfig).Handshake())
 	s.Close()
 	if err != io.EOF {
 		t.Errorf("Got error: %s; expected: %s", err, io.EOF)

@@ -616,20 +616,14 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 	if c.quic != nil {
 		return c.in.setErrorLocked(errors.New("tls: internal error: attempted to read record with QUIC transport"))
 	}
+	mylog.Check(
 
-	// Read header, payload.
-	if err := c.readFromUntil(c.conn, recordHeaderLen); err != nil {
-		// RFC 8446, Section 6.1 suggests that EOF without an alertCloseNotify
-		// is an error, but popular web sites seem to do this, so we accept it
-		// if and only if at the record boundary.
-		if errors.Is(err, io.ErrUnexpectedEOF) && c.rawInput.Len() == 0 {
-			err = io.EOF
-		}
-		if e, ok := err.(net.Error); !ok || !e.Temporary() {
-			c.in.setErrorLocked(err)
-		}
-		return err
-	}
+		// Read header, payload.
+		c.readFromUntil(c.conn, recordHeaderLen))
+	// RFC 8446, Section 6.1 suggests that EOF without an alertCloseNotify
+	// is an error, but popular web sites seem to do this, so we accept it
+	// if and only if at the record boundary.
+
 	hdr := c.rawInput.Bytes()[:recordHeaderLen]
 	typ := recordType(hdr[0])
 
@@ -789,7 +783,7 @@ func (r *atLeastReader) Read(p []byte) (int, error) {
 	if r.N <= 0 {
 		return 0, io.EOF
 	}
-	n, err := r.R.Read(p)
+	n := mylog.Check2(r.R.Read(p))
 	r.N -= int64(n) // won't underflow unless len(p) >= n > 9223372036854775809
 	if r.N > 0 && err == io.EOF {
 		return n, io.ErrUnexpectedEOF
@@ -1334,9 +1328,8 @@ func (c *Conn) Read(b []byte) (int, error) {
 	// See https://golang.org/cl/76400046 and https://golang.org/issue/3514
 	if n != 0 && c.input.Len() == 0 && c.rawInput.Len() > 0 &&
 		recordType(c.rawInput.Bytes()[0]) == recordTypeAlert {
-		if err := c.readRecord(); err != nil {
-			return n, err // will be io.EOF on closeNotify
-		}
+		mylog.Check(c.readRecord())
+		// will be io.EOF on closeNotify
 	}
 
 	return n, nil

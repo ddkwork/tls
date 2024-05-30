@@ -206,10 +206,10 @@ func Name() string {
 func appendBytes(b []byte, args ...uint32) []byte {
 	for _, arg := range args {
 		b = append(b,
-			byte(arg >> 0),
-			byte(arg >> 8),
-			byte(arg >> 16),
-			byte(arg >> 24))
+			byte(arg>>0),
+			byte(arg>>8),
+			byte(arg>>16),
+			byte(arg>>24))
 	}
 	return b
 }
