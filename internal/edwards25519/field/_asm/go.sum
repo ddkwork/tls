@@ -6,6 +6,8 @@ github.com/ddkwork/golibrary v0.0.58 h1:v8bXgseiE69BU8ljCvxBE6SGHaBExIih1PYPucmB
 github.com/ddkwork/golibrary v0.0.58/go.mod h1:wnz6yMtdcIDWr30n2pVWgbZip5KU3O1DI0WgcQpfFg4=
 github.com/ddkwork/golibrary v0.0.59 h1:ehRi4IkOkuZknhjD7/3dZvJSvAg8ubcPdCZ5Kuko+eg=
 github.com/ddkwork/golibrary v0.0.59/go.mod h1:bMFBej7hF+v0iRPFfJIAJ+QvFjD9OzW5F0LO14SwSgM=
+github.com/ddkwork/golibrary v0.0.61 h1:Es77O5/vrMO6MnFPqLDucdWfexXhT8mgBzeBIY+tlSw=
+github.com/ddkwork/golibrary v0.0.61/go.mod h1:bMFBej7hF+v0iRPFfJIAJ+QvFjD9OzW5F0LO14SwSgM=
 github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
 github.com/fatih/color v1.17.0/go.mod h1:YZ7TlrGPkiz6ku9fK3TLD/pl3CpsiFyu8N92HLgmosI=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
