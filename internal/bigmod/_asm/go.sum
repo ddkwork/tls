@@ -10,6 +10,8 @@ github.com/ddkwork/golibrary v0.0.59 h1:ehRi4IkOkuZknhjD7/3dZvJSvAg8ubcPdCZ5Kuko
 github.com/ddkwork/golibrary v0.0.59/go.mod h1:bMFBej7hF+v0iRPFfJIAJ+QvFjD9OzW5F0LO14SwSgM=
 github.com/ddkwork/golibrary v0.0.61 h1:Es77O5/vrMO6MnFPqLDucdWfexXhT8mgBzeBIY+tlSw=
 github.com/ddkwork/golibrary v0.0.61/go.mod h1:bMFBej7hF+v0iRPFfJIAJ+QvFjD9OzW5F0LO14SwSgM=
+github.com/ddkwork/golibrary v0.0.62 h1:1FykFpwByIEtR6l7tm7sa2MmZDjuoMEcZwY3tB1JADw=
+github.com/ddkwork/golibrary v0.0.62/go.mod h1:aLG0o5decT3ocB5SWY94n55ynRpVcL8OInSo2p0o5UA=
 github.com/mmcloughlin/avo v0.4.0 h1:jeHDRktVD+578ULxWpQHkilor6pkdLF7u7EiTzDbfcU=
 github.com/mmcloughlin/avo v0.4.0/go.mod h1:RW9BfYA3TgO9uCdNrKU2h6J8cPD8ZLznvfgHAeszb1s=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
