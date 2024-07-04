@@ -6,6 +6,8 @@ github.com/ddkwork/golibrary v0.0.87-0.20240630161900-eee095645e09 h1:5rNRLCeQyl
 github.com/ddkwork/golibrary v0.0.87-0.20240630161900-eee095645e09/go.mod h1:GlLX0w5HQ9dhHS5hhwcOJNSoLUO8ud4WnrbKa41MmcE=
 github.com/ddkwork/golibrary v0.0.87-0.20240703090745-d512ac498c9e h1:adnZJdO8y/hLJSKR+8XbsqMzblPmOg705uO2s3GwQCw=
 github.com/ddkwork/golibrary v0.0.87-0.20240703090745-d512ac498c9e/go.mod h1:GlLX0w5HQ9dhHS5hhwcOJNSoLUO8ud4WnrbKa41MmcE=
+github.com/ddkwork/golibrary v0.0.87-0.20240704035619-a2512dff848c h1:VI2eB/ey43L+4z8clzwWWGZAC6G7d20FRw0+gAkwuoo=
+github.com/ddkwork/golibrary v0.0.87-0.20240704035619-a2512dff848c/go.mod h1:GlLX0w5HQ9dhHS5hhwcOJNSoLUO8ud4WnrbKa41MmcE=
 github.com/mmcloughlin/avo v0.4.0/go.mod h1:RW9BfYA3TgO9uCdNrKU2h6J8cPD8ZLznvfgHAeszb1s=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
