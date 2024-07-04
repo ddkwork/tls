@@ -3,7 +3,7 @@ module github.com/ddkwork/tls
 go 1.22.4
 
 require (
-	github.com/ddkwork/golibrary v0.0.87-0.20240704100055-aa7c86564bda
+	github.com/ddkwork/golibrary v0.0.87-0.20240704181208-f9ab2381304f
 	golang.org/x/crypto v0.24.0
 )
 
