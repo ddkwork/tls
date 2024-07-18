@@ -12,7 +12,7 @@ import (
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../nat_amd64.s -pkg bigmod
+//go:generate go run -x . -out ../nat_amd64.s -pkg bigmod
 
 func main() {
 	Package("github.com/ddkwork/tls/internal/bigmod")

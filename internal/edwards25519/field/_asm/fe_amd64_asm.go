@@ -14,7 +14,7 @@ import (
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field
+//go:generate go run -x . -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field
 
 func main() {
 	Package("github.com/ddkwork/tls/internal/edwards25519/field")
