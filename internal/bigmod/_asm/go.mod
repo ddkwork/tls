@@ -5,7 +5,7 @@ go 1.22.5
 require github.com/mmcloughlin/avo v0.4.0
 
 require (
-	github.com/ddkwork/golibrary v0.0.0-20240726111718-088eb10b0626 // indirect
+	github.com/ddkwork/golibrary v0.0.0-20240726120225-55a9b27a579e // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
