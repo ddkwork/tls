@@ -20,5 +20,5 @@ require (
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
-	mvdan.cc/gofumpt v0.6.0 // indirect
+	mvdan.cc/gofumpt v0.7.0 // indirect
 )
