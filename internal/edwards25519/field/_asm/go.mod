@@ -1,6 +1,6 @@
 module std/crypto/internal/edwards25519/field/_asm
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/ddkwork/golibrary v0.0.0-20240807032548-2d6a9a212679
