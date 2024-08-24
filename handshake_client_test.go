@@ -2118,7 +2118,7 @@ func TestAlertFlushing(t *testing.T) {
 	}()
 	mylog.Check(Client(clientWCC, testConfig).Handshake())
 	const expectedError = "remote error: tls: internal error"
-	//if e := err.Error(); !strings.Contains(e, expectedError) {
+	//if e := err.Error(); !strings.Has(e, expectedError) {
 	//	t.Fatalf("expected to find %q in error but error was %q", expectedError, e)
 	//}
 	clientWCC.Close()
