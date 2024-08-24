@@ -2,8 +2,6 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/dc0d/caseconv v0.5.0 h1:z3Ki2zszD03beetWyNAGa3NOAbnDJk+bX0tvcx9BKjQ=
 github.com/dc0d/caseconv v0.5.0/go.mod h1:/CrBBNtMoPTPf0INHrwyyhDrDjAJ9PFE+WuxSJHU0ZE=
-github.com/ddkwork/golibrary v0.0.0-20240807032548-2d6a9a212679 h1:YnQ/rrNQ86Jb9MaUmVu95qqTifwEXDP2wGG/mtJRM4U=
-github.com/ddkwork/golibrary v0.0.0-20240807032548-2d6a9a212679/go.mod h1:Ym9Q+yayQGbdr7O+p1Br1IoY8MfRhmbluPodt66GZkE=
 github.com/ddkwork/golibrary v0.0.0-20240824094649-0784b16f2688 h1:S4jpMyc/YlfaZqpMqhL6jD8Y/xfeIT+9lMINvzlc/z4=
 github.com/ddkwork/golibrary v0.0.0-20240824094649-0784b16f2688/go.mod h1:imN0hGAoy0foNmWuNfQYsT3Hayyj0CijrQtxUGNWlhs=
 github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
