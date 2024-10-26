@@ -15,14 +15,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"internal/obscuretestdata"
 	"math/big"
 	"net"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
-
-	"internal/obscuretestdata"
 
 	"github.com/ddkwork/golibrary/mylog"
 	"github.com/ddkwork/tls/internal/boring/fipstls"
