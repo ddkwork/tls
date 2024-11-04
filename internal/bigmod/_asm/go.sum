@@ -40,6 +40,8 @@ github.com/ddkwork/golibrary v0.0.0-20241101105340-067eea333e30 h1:nKDz8Lq3u5OL1
 github.com/ddkwork/golibrary v0.0.0-20241101105340-067eea333e30/go.mod h1:p8V5mLCgZMeDa7O9DakEAHHryCadsIzz5t2IvF7AoQE=
 github.com/ddkwork/golibrary v0.0.0-20241102061918-ccf0e4c81417 h1:t1RzgfSwXUiFWJfxiDj4u0vWMMokqgjA/cfhSP7Sufo=
 github.com/ddkwork/golibrary v0.0.0-20241102061918-ccf0e4c81417/go.mod h1:p8V5mLCgZMeDa7O9DakEAHHryCadsIzz5t2IvF7AoQE=
+github.com/ddkwork/golibrary v0.0.0-20241104012447-f2090de7a662 h1:DT0ffRXPHYictD18nnS3EPc/xhR6TLBl3nkDclRLdtc=
+github.com/ddkwork/golibrary v0.0.0-20241104012447-f2090de7a662/go.mod h1:p8V5mLCgZMeDa7O9DakEAHHryCadsIzz5t2IvF7AoQE=
 github.com/mmcloughlin/avo v0.4.0 h1:jeHDRktVD+578ULxWpQHkilor6pkdLF7u7EiTzDbfcU=
 github.com/mmcloughlin/avo v0.4.0/go.mod h1:RW9BfYA3TgO9uCdNrKU2h6J8cPD8ZLznvfgHAeszb1s=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
