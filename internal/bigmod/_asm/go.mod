@@ -1,6 +1,6 @@
 module std/crypto/internal/bigmod/_asm
 
-go 1.23.0
+go 1.23.3
 
 require github.com/mmcloughlin/avo v0.4.0
 
