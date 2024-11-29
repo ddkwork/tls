@@ -658,7 +658,7 @@ func (test *serverTest) run(t *testing.T, write bool) {
 
 	if write {
 		path := test.dataPath()
-		out := mylog.Check2(os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644))
+		out := mylog.Check2(os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644))
 
 		defer out.Close()
 		recordingConn.Close()

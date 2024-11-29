@@ -344,7 +344,7 @@ func runMain(m *testing.M) int {
 	testConfig.Certificates[1].PrivateKey = testRSAPrivateKey
 	testConfig.BuildNameToCertificate()
 	if *keyFile != "" {
-		f := mylog.Check2(os.OpenFile(*keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
+		f := mylog.Check2(os.OpenFile(*keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644))
 
 		testConfig.KeyLogWriter = f
 		defer f.Close()

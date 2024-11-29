@@ -79,7 +79,7 @@ func main() { tls.Dial("", "", nil) }
 	exeFile := filepath.Join(tmpDir, "x.exe")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mylog.Check(os.WriteFile(goFile, []byte(tt.program), 0644))
+			mylog.Check(os.WriteFile(goFile, []byte(tt.program), 0o644))
 
 			os.Remove(exeFile)
 			cmd := exec.Command(goBin, "build", "-o", "x.exe", "x.go")

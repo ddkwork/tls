@@ -137,7 +137,7 @@ func main() {
 
 	log.Print("wrote cert.pem\n")
 
-	keyOut := mylog.Check2(os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600))
+	keyOut := mylog.Check2(os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600))
 
 	privBytes := mylog.Check2(x509.MarshalPKCS8PrivateKey(priv))
 	mylog.Check(pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}))
