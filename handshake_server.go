@@ -580,7 +580,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		mylog.Check(c.config.VerifyConnection(c.connectionStateLocked()))
 	}
 
-	// Get client key exchange
+	// GetMust client key exchange
 	ckx, ok := msg.(*clientKeyExchangeMsg)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)

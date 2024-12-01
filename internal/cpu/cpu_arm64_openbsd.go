@@ -19,7 +19,7 @@ const (
 func sysctlUint64(mib []uint32) (uint64, bool)
 
 func osInit() {
-	// Get ID_AA64ISAR0 from sysctl.
+	// GetMust ID_AA64ISAR0 from sysctl.
 	isar0, ok := sysctlUint64([]uint32{_CTL_MACHDEP, _CPU_ID_AA64ISAR0})
 	if !ok {
 		return

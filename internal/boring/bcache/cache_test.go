@@ -61,14 +61,14 @@ func TestCache(t *testing.T) {
 	// Check results.
 	for k, v := range m {
 		if cv := c.Get(k); cv != v {
-			t.Fatalf("c.Get(%v) = %v, want %v", str(k), str(cv), str(v))
+			t.Fatalf("c.GetMust(%v) = %v, want %v", str(k), str(cv), str(v))
 		}
 	}
 
 	c.Clear()
 	for k := range m {
 		if cv := c.Get(k); cv != nil {
-			t.Fatalf("after GC, c.Get(%v) = %v, want nil", str(k), str(cv))
+			t.Fatalf("after GC, c.GetMust(%v) = %v, want nil", str(k), str(cv))
 		}
 	}
 
@@ -80,7 +80,7 @@ func TestCache(t *testing.T) {
 	runtime.GC()
 	for k := range m {
 		if cv := c.Get(k); cv != nil {
-			t.Fatalf("after Clear, c.Get(%v) = %v, want nil", str(k), str(cv))
+			t.Fatalf("after Clear, c.GetMust(%v) = %v, want nil", str(k), str(cv))
 		}
 	}
 
@@ -109,7 +109,7 @@ func TestCache(t *testing.T) {
 
 			for k, v := range m {
 				if cv := c.Get(k); cv != v {
-					t.Errorf("c.Get(%v) = %v, want %v", str(k), str(cv), str(v))
+					t.Errorf("c.GetMust(%v) = %v, want %v", str(k), str(cv), str(v))
 					atomic.AddInt32(&lost, +1)
 				}
 			}

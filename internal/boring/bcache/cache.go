@@ -94,7 +94,7 @@ func (c *Cache[K, V]) Put(k *K, v *V) {
 	head := &c.table()[uintptr(unsafe.Pointer(k))%cacheSize]
 
 	// Strategy is to walk the linked list at head,
-	// same as in Get, to look for existing entry.
+	// same as in GetMust, to look for existing entry.
 	// If we find one, we update v atomically in place.
 	// If not, then we race to replace the start = *head
 	// we observed with a new k, v entry.
