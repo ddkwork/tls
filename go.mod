@@ -1,9 +1,9 @@
 module github.com/ddkwork/tls
 
-go 1.23.3
+go 1.24.0
 
 require (
-	github.com/ddkwork/golibrary v0.0.0-20250101093329-d96f6524ebe4
+	github.com/ddkwork/golibrary v0.0.88-0.20250216081829-938757a0a8d6
 	golang.org/x/crypto v0.28.0
 )
 
@@ -20,11 +20,11 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/exp/shiny v0.0.0-20241009180824-f66d83c29e7c // indirect
-	golang.org/x/image v0.23.0 // indirect
-	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/image v0.24.0 // indirect
+	golang.org/x/mod v0.23.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/tools v0.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mvdan.cc/gofumpt v0.7.0 // indirect
 )
