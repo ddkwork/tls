@@ -3,17 +3,17 @@ module github.com/ddkwork/tls
 go 1.24.0
 
 require (
-	github.com/ddkwork/golibrary v0.0.90
+	github.com/ddkwork/golibrary v0.0.91-0.20250218040836-998049f41076
 	golang.org/x/crypto v0.28.0
 )
 
 require (
-	gioui.org v0.7.1 // indirect
+	gioui.org v0.8.0 // indirect
 	gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7 // indirect
 	gioui.org/shader v1.0.8 // indirect
 	github.com/dc0d/caseconv v0.5.0 // indirect
 	github.com/fatih/color v1.17.0 // indirect
-	github.com/go-text/typesetting v0.1.2 // indirect
+	github.com/go-text/typesetting v0.2.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
