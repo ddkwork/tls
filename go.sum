@@ -33,6 +33,8 @@ github.com/ddkwork/golibrary v0.0.91-0.20250221114559-8a02d569f328 h1:sd23iR6brH
 github.com/ddkwork/golibrary v0.0.91-0.20250221114559-8a02d569f328/go.mod h1:1gL0UKrg1P09z/AiaAWWtWxMT7a8+X8mWU6Ok9sYc8s=
 github.com/ddkwork/golibrary v0.0.91-0.20250222100916-fc8029a3f592 h1:rSCExRy2Ne3P6VlJO3i129+nhUOZ5sDMHyMqUd5w8vU=
 github.com/ddkwork/golibrary v0.0.91-0.20250222100916-fc8029a3f592/go.mod h1:6yNujFwybY0YmjNj7uDegka5mnO2Xg6XMNNtQ9TZ/gI=
+github.com/ddkwork/golibrary v0.0.91-0.20250222134107-b787fdf70afa h1:W0jE6QIxxD/PPQp/yOGWOEDfNQpqGMFmdpbyliCvXqw=
+github.com/ddkwork/golibrary v0.0.91-0.20250222134107-b787fdf70afa/go.mod h1:6yNujFwybY0YmjNj7uDegka5mnO2Xg6XMNNtQ9TZ/gI=
 github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
 github.com/fatih/color v1.17.0/go.mod h1:YZ7TlrGPkiz6ku9fK3TLD/pl3CpsiFyu8N92HLgmosI=
 github.com/go-quicktest/qt v1.101.0 h1:O1K29Txy5P2OK0dGo59b7b0LR6wKfIhttaAhHUyn7eI=
