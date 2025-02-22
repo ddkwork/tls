@@ -3,7 +3,7 @@ module github.com/ddkwork/tls
 go 1.24.0
 
 require (
-	github.com/ddkwork/golibrary v0.0.91-0.20250221114559-8a02d569f328
+	github.com/ddkwork/golibrary v0.0.91-0.20250222100916-fc8029a3f592
 	golang.org/x/crypto v0.28.0
 )
 
@@ -13,13 +13,13 @@ require (
 	gioui.org/shader v1.0.8 // indirect
 	github.com/dc0d/caseconv v0.5.0 // indirect
 	github.com/fatih/color v1.17.0 // indirect
-	github.com/go-text/typesetting v0.2.1 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/go-text/typesetting v0.3.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
-	golang.org/x/exp/shiny v0.0.0-20241009180824-f66d83c29e7c // indirect
+	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
+	golang.org/x/exp/shiny v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/mod v0.23.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
