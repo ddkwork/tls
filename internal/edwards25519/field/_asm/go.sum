@@ -11,6 +11,8 @@ github.com/ddkwork/golibrary v0.0.91-0.20250305180712-ddf6d725a722 h1:hS0HTAtQ/J
 github.com/ddkwork/golibrary v0.0.91-0.20250305180712-ddf6d725a722/go.mod h1:afs36GEYYsVLFfdeMY6DSQzkKueVsU+2yV4S+GPoImw=
 github.com/ddkwork/golibrary v0.0.91-0.20250306044045-85bbe24a4e0f h1:x26+xb+EGgucr1Ynk7u7XK2PgWaRbvScbXvJy1BIXz8=
 github.com/ddkwork/golibrary v0.0.91-0.20250306044045-85bbe24a4e0f/go.mod h1:K88fLHDlKcBxwoZNLYUFe61XSWgGM+zvJqba8xepN+E=
+github.com/ddkwork/golibrary v0.0.91-0.20250306045432-aa8da34ea72d h1:vM2Kk0nFHmt3MvSdmYeSuqCBO3qXeiXg0a+s1/tY0DM=
+github.com/ddkwork/golibrary v0.0.91-0.20250306045432-aa8da34ea72d/go.mod h1:K88fLHDlKcBxwoZNLYUFe61XSWgGM+zvJqba8xepN+E=
 github.com/go-text/typesetting v0.3.0 h1:OWCgYpp8njoxSRpwrdd1bQOxdjOXDj9Rqart9ML4iF4=
 github.com/go-text/typesetting v0.3.0/go.mod h1:qjZLkhRgOEYMhU9eHBr3AR4sfnGJvOXNLt8yRAySFuY=
 github.com/go-text/typesetting-utils v0.0.0-20241103174707-87a29e9e6066 h1:qCuYC+94v2xrb1PoS4NIDe7DGYtLnU2wWiQe9a1B1c0=
