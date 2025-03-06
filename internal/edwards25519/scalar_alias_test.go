@@ -73,7 +73,7 @@ func TestScalarAliasing(t *testing.T) {
 		return x == x1 && y == y1
 	}
 
-	for _, f := range map[string]interface{}{
+	for _, f := range map[string]any{
 		"Negate": func(v, x Scalar) bool {
 			return checkAliasingOneArg((*Scalar).Negate, v, x)
 		},
