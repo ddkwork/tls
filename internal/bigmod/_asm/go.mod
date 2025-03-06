@@ -13,7 +13,7 @@ require (
 	github.com/akavel/rsrc v0.10.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/ddkwork/golibrary v0.0.91-0.20250305180712-ddf6d725a722 // indirect
+	github.com/ddkwork/golibrary v0.0.91-0.20250306045432-aa8da34ea72d // indirect
 	github.com/ddkwork/toolbox v0.0.0-20250305101644-ff54d4ae6db5 // indirect
 	github.com/ddkwork/unison v0.0.0-20250305180242-a5dfb06bd092 // indirect
 	github.com/ddkwork/ux v0.0.0-20250303130840-fafe4917a132 // indirect
@@ -33,10 +33,10 @@ require (
 	golang.org/x/exp/shiny v0.0.0-20250228200357-dead58393ab7 // indirect
 	golang.org/x/image v0.25.0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	golang.org/x/tools v0.30.0 // indirect
+	golang.org/x/tools v0.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
