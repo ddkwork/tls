@@ -3,7 +3,7 @@ module std/crypto/internal/edwards25519/field/_asm
 go 1.24.0
 
 require (
-	github.com/ddkwork/golibrary v0.0.91-0.20250306173050-a0dbb6222439
+	github.com/ddkwork/golibrary v0.0.91-0.20250324091236-7773f1c26781
 	github.com/mmcloughlin/avo v0.4.0
 )
 
